@@ -1,0 +1,384 @@
+{
+  "pbtResults": {},
+  "executionHistory": {
+    "1.1 Create backend directory structure": [
+      {
+        "executionId": "1db6f845-55c5-4290-a887-de6e0702399c",
+        "chatSessionId": "sess_383ca575-82e6-4f06-92a1-38ef3d4fcfa4",
+        "timestamp": 1788090973927
+      },
+      {
+        "executionId": "1db6f845-55c5-4290-a887-de6e0702399c",
+        "chatSessionId": "sess_383ca575-82e6-4f06-92a1-38ef3d4fcfa4",
+        "timestamp": 1788090986472
+      },
+      {
+        "executionId": "1db6f845-55c5-4290-a887-de6e0702399c",
+        "chatSessionId": "sess_383ca575-82e6-4f06-92a1-38ef3d4fcfa4",
+        "timestamp": 1788091759646
+      }
+    ],
+    "1.2 Create frontend directory structure": [
+      {
+        "executionId": "1db6f845-55c5-4290-a887-de6e0702399c",
+        "chatSessionId": "sess_383ca575-82e6-4f06-92a1-38ef3d4fcfa4",
+        "timestamp": 1788090974133
+      },
+      {
+        "executionId": "1db6f845-55c5-4290-a887-de6e0702399c",
+        "chatSessionId": "sess_383ca575-82e6-4f06-92a1-38ef3d4fcfa4",
+        "timestamp": 1788090988552
+      },
+      {
+        "executionId": "1db6f845-55c5-4290-a887-de6e0702399c",
+        "chatSessionId": "sess_383ca575-82e6-4f06-92a1-38ef3d4fcfa4",
+        "timestamp": 1788091759926
+      }
+    ],
+    "1.3 Create environment config files": [
+      {
+        "executionId": "1db6f845-55c5-4290-a887-de6e0702399c",
+        "chatSessionId": "sess_383ca575-82e6-4f06-92a1-38ef3d4fcfa4",
+        "timestamp": 1788090974263
+      },
+      {
+        "executionId": "1db6f845-55c5-4290-a887-de6e0702399c",
+        "chatSessionId": "sess_383ca575-82e6-4f06-92a1-38ef3d4fcfa4",
+        "timestamp": 1788090988503
+      },
+      {
+        "executionId": "1db6f845-55c5-4290-a887-de6e0702399c",
+        "chatSessionId": "sess_383ca575-82e6-4f06-92a1-38ef3d4fcfa4",
+        "timestamp": 1788091760493
+      }
+    ],
+    "1.4 Implement `config.py` using pydantic-settings": [
+      {
+        "executionId": "1db6f845-55c5-4290-a887-de6e0702399c",
+        "chatSessionId": "sess_383ca575-82e6-4f06-92a1-38ef3d4fcfa4",
+        "timestamp": 1788090974322
+      },
+      {
+        "executionId": "1db6f845-55c5-4290-a887-de6e0702399c",
+        "chatSessionId": "sess_383ca575-82e6-4f06-92a1-38ef3d4fcfa4",
+        "timestamp": 1788091774222
+      },
+      {
+        "executionId": "1db6f845-55c5-4290-a887-de6e0702399c",
+        "chatSessionId": "sess_383ca575-82e6-4f06-92a1-38ef3d4fcfa4",
+        "timestamp": 1788091856731
+      }
+    ],
+    "2.1 Write Supabase migration SQL file": [
+      {
+        "executionId": "1db6f845-55c5-4290-a887-de6e0702399c",
+        "chatSessionId": "sess_383ca575-82e6-4f06-92a1-38ef3d4fcfa4",
+        "timestamp": 1788090974375
+      },
+      {
+        "executionId": "1db6f845-55c5-4290-a887-de6e0702399c",
+        "chatSessionId": "sess_383ca575-82e6-4f06-92a1-38ef3d4fcfa4",
+        "timestamp": 1788091774689
+      },
+      {
+        "executionId": "1db6f845-55c5-4290-a887-de6e0702399c",
+        "chatSessionId": "sess_383ca575-82e6-4f06-92a1-38ef3d4fcfa4",
+        "timestamp": 1788091857462
+      }
+    ],
+    "2.2 Write CBSE Class 12 seed data SQL": [
+      {
+        "executionId": "1db6f845-55c5-4290-a887-de6e0702399c",
+        "chatSessionId": "sess_383ca575-82e6-4f06-92a1-38ef3d4fcfa4",
+        "timestamp": 1788090974445
+      },
+      {
+        "executionId": "1db6f845-55c5-4290-a887-de6e0702399c",
+        "chatSessionId": "sess_383ca575-82e6-4f06-92a1-38ef3d4fcfa4",
+        "timestamp": 1788091861283
+      },
+      {
+        "executionId": "1db6f845-55c5-4290-a887-de6e0702399c",
+        "chatSessionId": "sess_383ca575-82e6-4f06-92a1-38ef3d4fcfa4",
+        "timestamp": 1788092508764
+      }
+    ],
+    "3.1 Implement `db.py` — Supabase client singleton with connection probe": [
+      {
+        "executionId": "1db6f845-55c5-4290-a887-de6e0702399c",
+        "chatSessionId": "sess_383ca575-82e6-4f06-92a1-38ef3d4fcfa4",
+        "timestamp": 1788090974491
+      },
+      {
+        "executionId": "1db6f845-55c5-4290-a887-de6e0702399c",
+        "chatSessionId": "sess_383ca575-82e6-4f06-92a1-38ef3d4fcfa4",
+        "timestamp": 1788091861821
+      },
+      {
+        "executionId": "1db6f845-55c5-4290-a887-de6e0702399c",
+        "chatSessionId": "sess_383ca575-82e6-4f06-92a1-38ef3d4fcfa4",
+        "timestamp": 1788092509560
+      }
+    ],
+    "3.2 Implement `main.py` — FastAPI app with lifespan, CORS, and global exception handler": [
+      {
+        "executionId": "1db6f845-55c5-4290-a887-de6e0702399c",
+        "chatSessionId": "sess_383ca575-82e6-4f06-92a1-38ef3d4fcfa4",
+        "timestamp": 1788090974533
+      },
+      {
+        "executionId": "1db6f845-55c5-4290-a887-de6e0702399c",
+        "chatSessionId": "sess_383ca575-82e6-4f06-92a1-38ef3d4fcfa4",
+        "timestamp": 1788092517648
+      }
+    ],
+    "4.1 Implement `compute_priority_score` and `compute_deadline_pressure` in `priority.py`": [
+      {
+        "executionId": "1db6f845-55c5-4290-a887-de6e0702399c",
+        "chatSessionId": "sess_383ca575-82e6-4f06-92a1-38ef3d4fcfa4",
+        "timestamp": 1788090974582
+      },
+      {
+        "executionId": "1db6f845-55c5-4290-a887-de6e0702399c",
+        "chatSessionId": "sess_383ca575-82e6-4f06-92a1-38ef3d4fcfa4",
+        "timestamp": 1788091862518
+      },
+      {
+        "executionId": "1db6f845-55c5-4290-a887-de6e0702399c",
+        "chatSessionId": "sess_383ca575-82e6-4f06-92a1-38ef3d4fcfa4",
+        "timestamp": 1788092510365
+      }
+    ],
+    "5. Checkpoint — Core infrastructure ready": [
+      {
+        "executionId": "1db6f845-55c5-4290-a887-de6e0702399c",
+        "chatSessionId": "sess_383ca575-82e6-4f06-92a1-38ef3d4fcfa4",
+        "timestamp": 1788090974635
+      }
+    ],
+    "6.1 Implement task service layer with priority score persistence": [
+      {
+        "executionId": "1db6f845-55c5-4290-a887-de6e0702399c",
+        "chatSessionId": "sess_383ca575-82e6-4f06-92a1-38ef3d4fcfa4",
+        "timestamp": 1788090974685
+      }
+    ],
+    "6.3 Implement `routes/tasks.py` — task CRUD and session endpoints": [
+      {
+        "executionId": "1db6f845-55c5-4290-a887-de6e0702399c",
+        "chatSessionId": "sess_383ca575-82e6-4f06-92a1-38ef3d4fcfa4",
+        "timestamp": 1788090974733
+      }
+    ],
+    "6.5 Implement `routes/chapters.py` — chapter listing and completion": [
+      {
+        "executionId": "1db6f845-55c5-4290-a887-de6e0702399c",
+        "chatSessionId": "sess_383ca575-82e6-4f06-92a1-38ef3d4fcfa4",
+        "timestamp": 1788090974784
+      }
+    ],
+    "6.7 Implement sleep log route — `POST /sleep-logs` with validation": [
+      {
+        "executionId": "1db6f845-55c5-4290-a887-de6e0702399c",
+        "chatSessionId": "sess_383ca575-82e6-4f06-92a1-38ef3d4fcfa4",
+        "timestamp": 1788090974838
+      }
+    ],
+    "6.10 Implement mistake routes — `POST /mistakes` with upsert and `GET /mistakes`": [
+      {
+        "executionId": "1db6f845-55c5-4290-a887-de6e0702399c",
+        "chatSessionId": "sess_383ca575-82e6-4f06-92a1-38ef3d4fcfa4",
+        "timestamp": 1788090974886
+      }
+    ],
+    "6.13 Implement test score routes — `POST /tests` with validation and `GET /tests/summary`": [
+      {
+        "executionId": "1db6f845-55c5-4290-a887-de6e0702399c",
+        "chatSessionId": "sess_383ca575-82e6-4f06-92a1-38ef3d4fcfa4",
+        "timestamp": 1788090974955
+      }
+    ],
+    "6.17 Implement reminder routes — `POST /reminders` and `GET /reminders`": [
+      {
+        "executionId": "1db6f845-55c5-4290-a887-de6e0702399c",
+        "chatSessionId": "sess_383ca575-82e6-4f06-92a1-38ef3d4fcfa4",
+        "timestamp": 1788090974993
+      }
+    ],
+    "7. Checkpoint — All REST routes complete": [
+      {
+        "executionId": "1db6f845-55c5-4290-a887-de6e0702399c",
+        "chatSessionId": "sess_383ca575-82e6-4f06-92a1-38ef3d4fcfa4",
+        "timestamp": 1788090975033
+      }
+    ],
+    "8.1 Implement `websocket_manager.py` — `ConnectionManager` with connect, broadcast, and disconnect": [
+      {
+        "executionId": "1db6f845-55c5-4290-a887-de6e0702399c",
+        "chatSessionId": "sess_383ca575-82e6-4f06-92a1-38ef3d4fcfa4",
+        "timestamp": 1788090975085
+      }
+    ],
+    "9.1 Implement `sleep_agent.py` — `get_sleep_window()` with default fallback": [
+      {
+        "executionId": "1db6f845-55c5-4290-a887-de6e0702399c",
+        "chatSessionId": "sess_383ca575-82e6-4f06-92a1-38ef3d4fcfa4",
+        "timestamp": 1788090975143
+      }
+    ],
+    "9.2 Implement AI provider stubs — `groq_provider.py` and `cerebras_provider.py`": [
+      {
+        "executionId": "1db6f845-55c5-4290-a887-de6e0702399c",
+        "chatSessionId": "sess_383ca575-82e6-4f06-92a1-38ef3d4fcfa4",
+        "timestamp": 1788090975190
+      }
+    ],
+    "9.3 Implement `tillu_brain.py` — Groq → Cerebras → rule-based fallback": [
+      {
+        "executionId": "1db6f845-55c5-4290-a887-de6e0702399c",
+        "chatSessionId": "sess_383ca575-82e6-4f06-92a1-38ef3d4fcfa4",
+        "timestamp": 1788090975240
+      }
+    ],
+    "9.5 Implement `planner_agent.py` — `run_nightly_plan()` with sleep window enforcement": [
+      {
+        "executionId": "1db6f845-55c5-4290-a887-de6e0702399c",
+        "chatSessionId": "sess_383ca575-82e6-4f06-92a1-38ef3d4fcfa4",
+        "timestamp": 1788090975287
+      }
+    ],
+    "9.8 Implement `reminder_agent.py` — `check_reminders()` with three-channel dispatch": [
+      {
+        "executionId": "1db6f845-55c5-4290-a887-de6e0702399c",
+        "chatSessionId": "sess_383ca575-82e6-4f06-92a1-38ef3d4fcfa4",
+        "timestamp": 1788090975336
+      }
+    ],
+    "9.9 Implement `scheduler.py` — `AsyncIOScheduler` with three jobs and safe error wrapper": [
+      {
+        "executionId": "1db6f845-55c5-4290-a887-de6e0702399c",
+        "chatSessionId": "sess_383ca575-82e6-4f06-92a1-38ef3d4fcfa4",
+        "timestamp": 1788090975388
+      }
+    ],
+    "10. Checkpoint — Backend complete": [
+      {
+        "executionId": "1db6f845-55c5-4290-a887-de6e0702399c",
+        "chatSessionId": "sess_383ca575-82e6-4f06-92a1-38ef3d4fcfa4",
+        "timestamp": 1788090975453
+      }
+    ],
+    "11.1 Implement WebSocket client — `lib/socket.ts` with exponential back-off reconnect": [
+      {
+        "executionId": "1db6f845-55c5-4290-a887-de6e0702399c",
+        "chatSessionId": "sess_383ca575-82e6-4f06-92a1-38ef3d4fcfa4",
+        "timestamp": 1788090975496
+      }
+    ],
+    "11.2 Implement `StudyContext` — React context, reducer, and `useWebSocket` hook": [
+      {
+        "executionId": "1db6f845-55c5-4290-a887-de6e0702399c",
+        "chatSessionId": "sess_383ca575-82e6-4f06-92a1-38ef3d4fcfa4",
+        "timestamp": 1788090975535
+      }
+    ],
+    "11.3 Implement `TaskCard` component": [
+      {
+        "executionId": "1db6f845-55c5-4290-a887-de6e0702399c",
+        "chatSessionId": "sess_383ca575-82e6-4f06-92a1-38ef3d4fcfa4",
+        "timestamp": 1788090975593
+      }
+    ],
+    "11.4 Implement `NotificationBanner` component": [
+      {
+        "executionId": "1db6f845-55c5-4290-a887-de6e0702399c",
+        "chatSessionId": "sess_383ca575-82e6-4f06-92a1-38ef3d4fcfa4",
+        "timestamp": 1788090975642
+      }
+    ],
+    "11.5 Implement `SyllabusProgress` component": [
+      {
+        "executionId": "1db6f845-55c5-4290-a887-de6e0702399c",
+        "chatSessionId": "sess_383ca575-82e6-4f06-92a1-38ef3d4fcfa4",
+        "timestamp": 1788090975692
+      }
+    ],
+    "11.6 Implement Home Dashboard page — `app/page.tsx`": [
+      {
+        "executionId": "1db6f845-55c5-4290-a887-de6e0702399c",
+        "chatSessionId": "sess_383ca575-82e6-4f06-92a1-38ef3d4fcfa4",
+        "timestamp": 1788090975739
+      }
+    ],
+    "11.7 Implement Timetable page — `app/timetable/page.tsx`": [
+      {
+        "executionId": "1db6f845-55c5-4290-a887-de6e0702399c",
+        "chatSessionId": "sess_383ca575-82e6-4f06-92a1-38ef3d4fcfa4",
+        "timestamp": 1788090975793
+      }
+    ],
+    "11.8 Implement Syllabus page — `app/syllabus/page.tsx`": [
+      {
+        "executionId": "1db6f845-55c5-4290-a887-de6e0702399c",
+        "chatSessionId": "sess_383ca575-82e6-4f06-92a1-38ef3d4fcfa4",
+        "timestamp": 1788090975842
+      }
+    ],
+    "11.9 Implement `TilluChat` component and chat route": [
+      {
+        "executionId": "1db6f845-55c5-4290-a887-de6e0702399c",
+        "chatSessionId": "sess_383ca575-82e6-4f06-92a1-38ef3d4fcfa4",
+        "timestamp": 1788090975892
+      }
+    ],
+    "12. Checkpoint — Frontend pages and components complete": [
+      {
+        "executionId": "1db6f845-55c5-4290-a887-de6e0702399c",
+        "chatSessionId": "sess_383ca575-82e6-4f06-92a1-38ef3d4fcfa4",
+        "timestamp": 1788090975958
+      }
+    ],
+    "13.1 Implement `start.py` launcher": [
+      {
+        "executionId": "1db6f845-55c5-4290-a887-de6e0702399c",
+        "chatSessionId": "sess_383ca575-82e6-4f06-92a1-38ef3d4fcfa4",
+        "timestamp": 1788090975997
+      }
+    ],
+    "13.2 Create `run.bat` Windows wrapper": [
+      {
+        "executionId": "1db6f845-55c5-4290-a887-de6e0702399c",
+        "chatSessionId": "sess_383ca575-82e6-4f06-92a1-38ef3d4fcfa4",
+        "timestamp": 1788090976037
+      }
+    ],
+    "15. Final checkpoint — full MVP wired and verified": [
+      {
+        "executionId": "1db6f845-55c5-4290-a887-de6e0702399c",
+        "chatSessionId": "sess_383ca575-82e6-4f06-92a1-38ef3d4fcfa4",
+        "timestamp": 1788090976094
+      }
+    ],
+    "1. Project scaffolding — folder structure, dependency files, and environment config": [
+      {
+        "executionId": "1db6f845-55c5-4290-a887-de6e0702399c",
+        "chatSessionId": "sess_383ca575-82e6-4f06-92a1-38ef3d4fcfa4",
+        "timestamp": 1788091856822
+      }
+    ],
+    "2. Supabase database schema — all 11 tables and pgvector extension": [
+      {
+        "executionId": "1db6f845-55c5-4290-a887-de6e0702399c",
+        "chatSessionId": "sess_383ca575-82e6-4f06-92a1-38ef3d4fcfa4",
+        "timestamp": 1788092508818
+      }
+    ],
+    "4. Priority Score engine": [
+      {
+        "executionId": "1db6f845-55c5-4290-a887-de6e0702399c",
+        "chatSessionId": "sess_383ca575-82e6-4f06-92a1-38ef3d4fcfa4",
+        "timestamp": 1788092510417
+      }
+    ]
+  }
+}
