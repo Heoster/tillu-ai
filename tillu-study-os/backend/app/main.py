@@ -28,6 +28,58 @@ from app.scheduler import start_scheduler, stop_scheduler
 from app.websocket_manager import ws_manager
 from app.routes import tasks, dashboard, chat
 
+# Optional routes — created by later tasks.  Import failures are silenced so
+# the app stays runnable while those files are still stubs / not yet created.
+try:
+    from app.routes import chapters as chapters_router
+except ImportError:
+    chapters_router = None  # type: ignore[assignment]
+
+try:
+    from app.routes.chapters import subjects_router
+except ImportError:
+    subjects_router = None  # type: ignore[assignment]
+
+try:
+    from app.routes import sleep_logs as sleep_logs_router
+except ImportError:
+    sleep_logs_router = None  # type: ignore[assignment]
+
+try:
+    from app.routes import mistakes as mistakes_router
+except ImportError:
+    mistakes_router = None  # type: ignore[assignment]
+
+try:
+    from app.routes import tests as tests_router
+except ImportError:
+    tests_router = None  # type: ignore[assignment]
+
+try:
+    from app.routes import reminders as reminders_router
+except ImportError:
+    reminders_router = None  # type: ignore[assignment]
+
+try:
+    from app.routes import playlists as playlists_router
+except ImportError:
+    playlists_router = None  # type: ignore[assignment]
+
+try:
+    from app.routes import voice as voice_router
+except ImportError:
+    voice_router = None  # type: ignore[assignment]
+
+try:
+    from app.routes import rag as rag_router
+except ImportError:
+    rag_router = None  # type: ignore[assignment]
+
+try:
+    from app.routes import documents as documents_router
+except ImportError:
+    documents_router = None  # type: ignore[assignment]
+
 logger = logging.getLogger(__name__)
 
 
@@ -92,14 +144,53 @@ async def global_exception_handler(request: Request, exc: Exception) -> JSONResp
         content={"error": str(exc)},
     )
 
+
 # ---------------------------------------------------------------------------
-# Routes
+# Routes — always-present
 # ---------------------------------------------------------------------------
 
 app.include_router(tasks.router, prefix="/tasks")
 app.include_router(dashboard.router, prefix="/dashboard")
 app.include_router(chat.router, prefix="/chat")
 
+# ---------------------------------------------------------------------------
+# Routes — optional (registered only when the module file exists)
+# ---------------------------------------------------------------------------
+
+if chapters_router is not None:
+    app.include_router(chapters_router.router, prefix="/chapters")
+
+if subjects_router is not None:
+    app.include_router(subjects_router, prefix="/subjects")
+
+if sleep_logs_router is not None:
+    app.include_router(sleep_logs_router.router, prefix="/sleep-logs")
+
+if mistakes_router is not None:
+    app.include_router(mistakes_router.router, prefix="/mistakes")
+
+if tests_router is not None:
+    app.include_router(tests_router.router, prefix="/tests")
+
+if reminders_router is not None:
+    app.include_router(reminders_router.router, prefix="/reminders")
+
+if playlists_router is not None:
+    app.include_router(playlists_router.router, prefix="/playlists")
+
+if voice_router is not None:
+    app.include_router(voice_router.router, prefix="/voice")
+
+if rag_router is not None:
+    app.include_router(rag_router.router, prefix="/rag")
+
+if documents_router is not None:
+    app.include_router(documents_router.router, prefix="/documents")
+
+
+# ---------------------------------------------------------------------------
+# Health probe
+# ---------------------------------------------------------------------------
 
 @app.get("/health", tags=["meta"])
 async def health():

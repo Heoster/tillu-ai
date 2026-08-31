@@ -130,6 +130,11 @@
         "executionId": "1db6f845-55c5-4290-a887-de6e0702399c",
         "chatSessionId": "sess_383ca575-82e6-4f06-92a1-38ef3d4fcfa4",
         "timestamp": 1788092517648
+      },
+      {
+        "executionId": "1db6f845-55c5-4290-a887-de6e0702399c",
+        "chatSessionId": "sess_383ca575-82e6-4f06-92a1-38ef3d4fcfa4",
+        "timestamp": 1788092827388
       }
     ],
     "4.1 Implement `compute_priority_score` and `compute_deadline_pressure` in `priority.py`": [
@@ -154,6 +159,26 @@
         "executionId": "1db6f845-55c5-4290-a887-de6e0702399c",
         "chatSessionId": "sess_383ca575-82e6-4f06-92a1-38ef3d4fcfa4",
         "timestamp": 1788090974635
+      },
+      {
+        "executionId": "1db6f845-55c5-4290-a887-de6e0702399c",
+        "chatSessionId": "sess_383ca575-82e6-4f06-92a1-38ef3d4fcfa4",
+        "timestamp": 1788092896318
+      },
+      {
+        "executionId": "6af70c2b-7426-419b-a25d-7d33b21bf703",
+        "chatSessionId": "sess_383ca575-82e6-4f06-92a1-38ef3d4fcfa4",
+        "timestamp": 1788093158492
+      },
+      {
+        "executionId": "6af70c2b-7426-419b-a25d-7d33b21bf703",
+        "chatSessionId": "sess_383ca575-82e6-4f06-92a1-38ef3d4fcfa4",
+        "timestamp": 1788093169178
+      },
+      {
+        "executionId": "6af70c2b-7426-419b-a25d-7d33b21bf703",
+        "chatSessionId": "sess_383ca575-82e6-4f06-92a1-38ef3d4fcfa4",
+        "timestamp": 1788093174055
       }
     ],
     "6.1 Implement task service layer with priority score persistence": [
@@ -161,6 +186,21 @@
         "executionId": "1db6f845-55c5-4290-a887-de6e0702399c",
         "chatSessionId": "sess_383ca575-82e6-4f06-92a1-38ef3d4fcfa4",
         "timestamp": 1788090974685
+      },
+      {
+        "executionId": "6af70c2b-7426-419b-a25d-7d33b21bf703",
+        "chatSessionId": "sess_383ca575-82e6-4f06-92a1-38ef3d4fcfa4",
+        "timestamp": 1788093158892
+      },
+      {
+        "executionId": "6af70c2b-7426-419b-a25d-7d33b21bf703",
+        "chatSessionId": "sess_383ca575-82e6-4f06-92a1-38ef3d4fcfa4",
+        "timestamp": 1788093181773
+      },
+      {
+        "executionId": "6af70c2b-7426-419b-a25d-7d33b21bf703",
+        "chatSessionId": "sess_383ca575-82e6-4f06-92a1-38ef3d4fcfa4",
+        "timestamp": 1788093456565
       }
     ],
     "6.3 Implement `routes/tasks.py` — task CRUD and session endpoints": [
@@ -168,6 +208,21 @@
         "executionId": "1db6f845-55c5-4290-a887-de6e0702399c",
         "chatSessionId": "sess_383ca575-82e6-4f06-92a1-38ef3d4fcfa4",
         "timestamp": 1788090974733
+      },
+      {
+        "executionId": "6af70c2b-7426-419b-a25d-7d33b21bf703",
+        "chatSessionId": "sess_383ca575-82e6-4f06-92a1-38ef3d4fcfa4",
+        "timestamp": 1788093158975
+      },
+      {
+        "executionId": "6af70c2b-7426-419b-a25d-7d33b21bf703",
+        "chatSessionId": "sess_383ca575-82e6-4f06-92a1-38ef3d4fcfa4",
+        "timestamp": 1788093461137
+      },
+      {
+        "executionId": "6af70c2b-7426-419b-a25d-7d33b21bf703",
+        "chatSessionId": "sess_383ca575-82e6-4f06-92a1-38ef3d4fcfa4",
+        "timestamp": 1788094337776
       }
     ],
     "6.5 Implement `routes/chapters.py` — chapter listing and completion": [
@@ -175,6 +230,21 @@
         "executionId": "1db6f845-55c5-4290-a887-de6e0702399c",
         "chatSessionId": "sess_383ca575-82e6-4f06-92a1-38ef3d4fcfa4",
         "timestamp": 1788090974784
+      },
+      {
+        "executionId": "6af70c2b-7426-419b-a25d-7d33b21bf703",
+        "chatSessionId": "sess_383ca575-82e6-4f06-92a1-38ef3d4fcfa4",
+        "timestamp": 1788093159027
+      },
+      {
+        "executionId": "6af70c2b-7426-419b-a25d-7d33b21bf703",
+        "chatSessionId": "sess_383ca575-82e6-4f06-92a1-38ef3d4fcfa4",
+        "timestamp": 1788093461702
+      },
+      {
+        "executionId": "6af70c2b-7426-419b-a25d-7d33b21bf703",
+        "chatSessionId": "sess_383ca575-82e6-4f06-92a1-38ef3d4fcfa4",
+        "timestamp": 1788094338354
       }
     ],
     "6.7 Implement sleep log route — `POST /sleep-logs` with validation": [
@@ -182,6 +252,21 @@
         "executionId": "1db6f845-55c5-4290-a887-de6e0702399c",
         "chatSessionId": "sess_383ca575-82e6-4f06-92a1-38ef3d4fcfa4",
         "timestamp": 1788090974838
+      },
+      {
+        "executionId": "6af70c2b-7426-419b-a25d-7d33b21bf703",
+        "chatSessionId": "sess_383ca575-82e6-4f06-92a1-38ef3d4fcfa4",
+        "timestamp": 1788093159078
+      },
+      {
+        "executionId": "6af70c2b-7426-419b-a25d-7d33b21bf703",
+        "chatSessionId": "sess_383ca575-82e6-4f06-92a1-38ef3d4fcfa4",
+        "timestamp": 1788093462331
+      },
+      {
+        "executionId": "6af70c2b-7426-419b-a25d-7d33b21bf703",
+        "chatSessionId": "sess_383ca575-82e6-4f06-92a1-38ef3d4fcfa4",
+        "timestamp": 1788094339187
       }
     ],
     "6.10 Implement mistake routes — `POST /mistakes` with upsert and `GET /mistakes`": [
@@ -189,6 +274,21 @@
         "executionId": "1db6f845-55c5-4290-a887-de6e0702399c",
         "chatSessionId": "sess_383ca575-82e6-4f06-92a1-38ef3d4fcfa4",
         "timestamp": 1788090974886
+      },
+      {
+        "executionId": "6af70c2b-7426-419b-a25d-7d33b21bf703",
+        "chatSessionId": "sess_383ca575-82e6-4f06-92a1-38ef3d4fcfa4",
+        "timestamp": 1788093159152
+      },
+      {
+        "executionId": "6af70c2b-7426-419b-a25d-7d33b21bf703",
+        "chatSessionId": "sess_383ca575-82e6-4f06-92a1-38ef3d4fcfa4",
+        "timestamp": 1788093462964
+      },
+      {
+        "executionId": "6af70c2b-7426-419b-a25d-7d33b21bf703",
+        "chatSessionId": "sess_383ca575-82e6-4f06-92a1-38ef3d4fcfa4",
+        "timestamp": 1788094339918
       }
     ],
     "6.13 Implement test score routes — `POST /tests` with validation and `GET /tests/summary`": [
@@ -196,6 +296,21 @@
         "executionId": "1db6f845-55c5-4290-a887-de6e0702399c",
         "chatSessionId": "sess_383ca575-82e6-4f06-92a1-38ef3d4fcfa4",
         "timestamp": 1788090974955
+      },
+      {
+        "executionId": "6af70c2b-7426-419b-a25d-7d33b21bf703",
+        "chatSessionId": "sess_383ca575-82e6-4f06-92a1-38ef3d4fcfa4",
+        "timestamp": 1788093159205
+      },
+      {
+        "executionId": "6af70c2b-7426-419b-a25d-7d33b21bf703",
+        "chatSessionId": "sess_383ca575-82e6-4f06-92a1-38ef3d4fcfa4",
+        "timestamp": 1788093463635
+      },
+      {
+        "executionId": "6af70c2b-7426-419b-a25d-7d33b21bf703",
+        "chatSessionId": "sess_383ca575-82e6-4f06-92a1-38ef3d4fcfa4",
+        "timestamp": 1788094341992
       }
     ],
     "6.17 Implement reminder routes — `POST /reminders` and `GET /reminders`": [
@@ -203,6 +318,21 @@
         "executionId": "1db6f845-55c5-4290-a887-de6e0702399c",
         "chatSessionId": "sess_383ca575-82e6-4f06-92a1-38ef3d4fcfa4",
         "timestamp": 1788090974993
+      },
+      {
+        "executionId": "6af70c2b-7426-419b-a25d-7d33b21bf703",
+        "chatSessionId": "sess_383ca575-82e6-4f06-92a1-38ef3d4fcfa4",
+        "timestamp": 1788093159252
+      },
+      {
+        "executionId": "6af70c2b-7426-419b-a25d-7d33b21bf703",
+        "chatSessionId": "sess_383ca575-82e6-4f06-92a1-38ef3d4fcfa4",
+        "timestamp": 1788094347461
+      },
+      {
+        "executionId": "6af70c2b-7426-419b-a25d-7d33b21bf703",
+        "chatSessionId": "sess_383ca575-82e6-4f06-92a1-38ef3d4fcfa4",
+        "timestamp": 1788094764345
       }
     ],
     "7. Checkpoint — All REST routes complete": [
@@ -210,6 +340,21 @@
         "executionId": "1db6f845-55c5-4290-a887-de6e0702399c",
         "chatSessionId": "sess_383ca575-82e6-4f06-92a1-38ef3d4fcfa4",
         "timestamp": 1788090975033
+      },
+      {
+        "executionId": "6af70c2b-7426-419b-a25d-7d33b21bf703",
+        "chatSessionId": "sess_383ca575-82e6-4f06-92a1-38ef3d4fcfa4",
+        "timestamp": 1788093159286
+      },
+      {
+        "executionId": "6af70c2b-7426-419b-a25d-7d33b21bf703",
+        "chatSessionId": "sess_383ca575-82e6-4f06-92a1-38ef3d4fcfa4",
+        "timestamp": 1788095085540
+      },
+      {
+        "executionId": "6af70c2b-7426-419b-a25d-7d33b21bf703",
+        "chatSessionId": "sess_383ca575-82e6-4f06-92a1-38ef3d4fcfa4",
+        "timestamp": 1788095391381
       }
     ],
     "8.1 Implement `websocket_manager.py` — `ConnectionManager` with connect, broadcast, and disconnect": [
@@ -217,6 +362,26 @@
         "executionId": "1db6f845-55c5-4290-a887-de6e0702399c",
         "chatSessionId": "sess_383ca575-82e6-4f06-92a1-38ef3d4fcfa4",
         "timestamp": 1788090975085
+      },
+      {
+        "executionId": "6af70c2b-7426-419b-a25d-7d33b21bf703",
+        "chatSessionId": "sess_383ca575-82e6-4f06-92a1-38ef3d4fcfa4",
+        "timestamp": 1788093159320
+      },
+      {
+        "executionId": "6af70c2b-7426-419b-a25d-7d33b21bf703",
+        "chatSessionId": "sess_383ca575-82e6-4f06-92a1-38ef3d4fcfa4",
+        "timestamp": 1788095410157
+      },
+      {
+        "executionId": "c0964bc7-d281-4e9b-bd6b-fb38ab22ebc4",
+        "chatSessionId": "sess_383ca575-82e6-4f06-92a1-38ef3d4fcfa4",
+        "timestamp": 1788100546695
+      },
+      {
+        "executionId": "c0964bc7-d281-4e9b-bd6b-fb38ab22ebc4",
+        "chatSessionId": "sess_383ca575-82e6-4f06-92a1-38ef3d4fcfa4",
+        "timestamp": 1788100554223
       }
     ],
     "9.1 Implement `sleep_agent.py` — `get_sleep_window()` with default fallback": [
@@ -224,6 +389,26 @@
         "executionId": "1db6f845-55c5-4290-a887-de6e0702399c",
         "chatSessionId": "sess_383ca575-82e6-4f06-92a1-38ef3d4fcfa4",
         "timestamp": 1788090975143
+      },
+      {
+        "executionId": "6af70c2b-7426-419b-a25d-7d33b21bf703",
+        "chatSessionId": "sess_383ca575-82e6-4f06-92a1-38ef3d4fcfa4",
+        "timestamp": 1788093159385
+      },
+      {
+        "executionId": "6af70c2b-7426-419b-a25d-7d33b21bf703",
+        "chatSessionId": "sess_383ca575-82e6-4f06-92a1-38ef3d4fcfa4",
+        "timestamp": 1788095410762
+      },
+      {
+        "executionId": "c0964bc7-d281-4e9b-bd6b-fb38ab22ebc4",
+        "chatSessionId": "sess_383ca575-82e6-4f06-92a1-38ef3d4fcfa4",
+        "timestamp": 1788100547150
+      },
+      {
+        "executionId": "c0964bc7-d281-4e9b-bd6b-fb38ab22ebc4",
+        "chatSessionId": "sess_383ca575-82e6-4f06-92a1-38ef3d4fcfa4",
+        "timestamp": 1788100569786
       }
     ],
     "9.2 Implement AI provider stubs — `groq_provider.py` and `cerebras_provider.py`": [
@@ -231,6 +416,26 @@
         "executionId": "1db6f845-55c5-4290-a887-de6e0702399c",
         "chatSessionId": "sess_383ca575-82e6-4f06-92a1-38ef3d4fcfa4",
         "timestamp": 1788090975190
+      },
+      {
+        "executionId": "6af70c2b-7426-419b-a25d-7d33b21bf703",
+        "chatSessionId": "sess_383ca575-82e6-4f06-92a1-38ef3d4fcfa4",
+        "timestamp": 1788093159480
+      },
+      {
+        "executionId": "6af70c2b-7426-419b-a25d-7d33b21bf703",
+        "chatSessionId": "sess_383ca575-82e6-4f06-92a1-38ef3d4fcfa4",
+        "timestamp": 1788095411477
+      },
+      {
+        "executionId": "c0964bc7-d281-4e9b-bd6b-fb38ab22ebc4",
+        "chatSessionId": "sess_383ca575-82e6-4f06-92a1-38ef3d4fcfa4",
+        "timestamp": 1788100547334
+      },
+      {
+        "executionId": "c0964bc7-d281-4e9b-bd6b-fb38ab22ebc4",
+        "chatSessionId": "sess_383ca575-82e6-4f06-92a1-38ef3d4fcfa4",
+        "timestamp": 1788100570714
       }
     ],
     "9.3 Implement `tillu_brain.py` — Groq → Cerebras → rule-based fallback": [
@@ -238,6 +443,26 @@
         "executionId": "1db6f845-55c5-4290-a887-de6e0702399c",
         "chatSessionId": "sess_383ca575-82e6-4f06-92a1-38ef3d4fcfa4",
         "timestamp": 1788090975240
+      },
+      {
+        "executionId": "6af70c2b-7426-419b-a25d-7d33b21bf703",
+        "chatSessionId": "sess_383ca575-82e6-4f06-92a1-38ef3d4fcfa4",
+        "timestamp": 1788093159520
+      },
+      {
+        "executionId": "c0964bc7-d281-4e9b-bd6b-fb38ab22ebc4",
+        "chatSessionId": "sess_383ca575-82e6-4f06-92a1-38ef3d4fcfa4",
+        "timestamp": 1788100547404
+      },
+      {
+        "executionId": "c0964bc7-d281-4e9b-bd6b-fb38ab22ebc4",
+        "chatSessionId": "sess_383ca575-82e6-4f06-92a1-38ef3d4fcfa4",
+        "timestamp": 1788100584842
+      },
+      {
+        "executionId": "c0964bc7-d281-4e9b-bd6b-fb38ab22ebc4",
+        "chatSessionId": "sess_383ca575-82e6-4f06-92a1-38ef3d4fcfa4",
+        "timestamp": 1788101151756
       }
     ],
     "9.5 Implement `planner_agent.py` — `run_nightly_plan()` with sleep window enforcement": [
@@ -245,6 +470,26 @@
         "executionId": "1db6f845-55c5-4290-a887-de6e0702399c",
         "chatSessionId": "sess_383ca575-82e6-4f06-92a1-38ef3d4fcfa4",
         "timestamp": 1788090975287
+      },
+      {
+        "executionId": "6af70c2b-7426-419b-a25d-7d33b21bf703",
+        "chatSessionId": "sess_383ca575-82e6-4f06-92a1-38ef3d4fcfa4",
+        "timestamp": 1788093159557
+      },
+      {
+        "executionId": "c0964bc7-d281-4e9b-bd6b-fb38ab22ebc4",
+        "chatSessionId": "sess_383ca575-82e6-4f06-92a1-38ef3d4fcfa4",
+        "timestamp": 1788100547463
+      },
+      {
+        "executionId": "c0964bc7-d281-4e9b-bd6b-fb38ab22ebc4",
+        "chatSessionId": "sess_383ca575-82e6-4f06-92a1-38ef3d4fcfa4",
+        "timestamp": 1788101158853
+      },
+      {
+        "executionId": "7ebdada0-2cd0-4e54-81f5-c1f28d138381",
+        "chatSessionId": "sess_383ca575-82e6-4f06-92a1-38ef3d4fcfa4",
+        "timestamp": 1788101746219
       }
     ],
     "9.8 Implement `reminder_agent.py` — `check_reminders()` with three-channel dispatch": [
@@ -252,6 +497,26 @@
         "executionId": "1db6f845-55c5-4290-a887-de6e0702399c",
         "chatSessionId": "sess_383ca575-82e6-4f06-92a1-38ef3d4fcfa4",
         "timestamp": 1788090975336
+      },
+      {
+        "executionId": "6af70c2b-7426-419b-a25d-7d33b21bf703",
+        "chatSessionId": "sess_383ca575-82e6-4f06-92a1-38ef3d4fcfa4",
+        "timestamp": 1788093159602
+      },
+      {
+        "executionId": "c0964bc7-d281-4e9b-bd6b-fb38ab22ebc4",
+        "chatSessionId": "sess_383ca575-82e6-4f06-92a1-38ef3d4fcfa4",
+        "timestamp": 1788100547550
+      },
+      {
+        "executionId": "c0964bc7-d281-4e9b-bd6b-fb38ab22ebc4",
+        "chatSessionId": "sess_383ca575-82e6-4f06-92a1-38ef3d4fcfa4",
+        "timestamp": 1788100585479
+      },
+      {
+        "executionId": "c0964bc7-d281-4e9b-bd6b-fb38ab22ebc4",
+        "chatSessionId": "sess_383ca575-82e6-4f06-92a1-38ef3d4fcfa4",
+        "timestamp": 1788101152195
       }
     ],
     "9.9 Implement `scheduler.py` — `AsyncIOScheduler` with three jobs and safe error wrapper": [
@@ -259,6 +524,26 @@
         "executionId": "1db6f845-55c5-4290-a887-de6e0702399c",
         "chatSessionId": "sess_383ca575-82e6-4f06-92a1-38ef3d4fcfa4",
         "timestamp": 1788090975388
+      },
+      {
+        "executionId": "6af70c2b-7426-419b-a25d-7d33b21bf703",
+        "chatSessionId": "sess_383ca575-82e6-4f06-92a1-38ef3d4fcfa4",
+        "timestamp": 1788093159674
+      },
+      {
+        "executionId": "c0964bc7-d281-4e9b-bd6b-fb38ab22ebc4",
+        "chatSessionId": "sess_383ca575-82e6-4f06-92a1-38ef3d4fcfa4",
+        "timestamp": 1788100547613
+      },
+      {
+        "executionId": "c0964bc7-d281-4e9b-bd6b-fb38ab22ebc4",
+        "chatSessionId": "sess_383ca575-82e6-4f06-92a1-38ef3d4fcfa4",
+        "timestamp": 1788101159738
+      },
+      {
+        "executionId": "7ebdada0-2cd0-4e54-81f5-c1f28d138381",
+        "chatSessionId": "sess_383ca575-82e6-4f06-92a1-38ef3d4fcfa4",
+        "timestamp": 1788101751335
       }
     ],
     "10. Checkpoint — Backend complete": [
@@ -266,6 +551,21 @@
         "executionId": "1db6f845-55c5-4290-a887-de6e0702399c",
         "chatSessionId": "sess_383ca575-82e6-4f06-92a1-38ef3d4fcfa4",
         "timestamp": 1788090975453
+      },
+      {
+        "executionId": "6af70c2b-7426-419b-a25d-7d33b21bf703",
+        "chatSessionId": "sess_383ca575-82e6-4f06-92a1-38ef3d4fcfa4",
+        "timestamp": 1788093159717
+      },
+      {
+        "executionId": "c0964bc7-d281-4e9b-bd6b-fb38ab22ebc4",
+        "chatSessionId": "sess_383ca575-82e6-4f06-92a1-38ef3d4fcfa4",
+        "timestamp": 1788100547669
+      },
+      {
+        "executionId": "7ebdada0-2cd0-4e54-81f5-c1f28d138381",
+        "chatSessionId": "sess_383ca575-82e6-4f06-92a1-38ef3d4fcfa4",
+        "timestamp": 1788102151976
       }
     ],
     "11.1 Implement WebSocket client — `lib/socket.ts` with exponential back-off reconnect": [
@@ -273,6 +573,26 @@
         "executionId": "1db6f845-55c5-4290-a887-de6e0702399c",
         "chatSessionId": "sess_383ca575-82e6-4f06-92a1-38ef3d4fcfa4",
         "timestamp": 1788090975496
+      },
+      {
+        "executionId": "6af70c2b-7426-419b-a25d-7d33b21bf703",
+        "chatSessionId": "sess_383ca575-82e6-4f06-92a1-38ef3d4fcfa4",
+        "timestamp": 1788093159759
+      },
+      {
+        "executionId": "c0964bc7-d281-4e9b-bd6b-fb38ab22ebc4",
+        "chatSessionId": "sess_383ca575-82e6-4f06-92a1-38ef3d4fcfa4",
+        "timestamp": 1788100547719
+      },
+      {
+        "executionId": "7ebdada0-2cd0-4e54-81f5-c1f28d138381",
+        "chatSessionId": "sess_383ca575-82e6-4f06-92a1-38ef3d4fcfa4",
+        "timestamp": 1788102156942
+      },
+      {
+        "executionId": "7ebdada0-2cd0-4e54-81f5-c1f28d138381",
+        "chatSessionId": "sess_383ca575-82e6-4f06-92a1-38ef3d4fcfa4",
+        "timestamp": 1788103350918
       }
     ],
     "11.2 Implement `StudyContext` — React context, reducer, and `useWebSocket` hook": [
@@ -280,6 +600,26 @@
         "executionId": "1db6f845-55c5-4290-a887-de6e0702399c",
         "chatSessionId": "sess_383ca575-82e6-4f06-92a1-38ef3d4fcfa4",
         "timestamp": 1788090975535
+      },
+      {
+        "executionId": "6af70c2b-7426-419b-a25d-7d33b21bf703",
+        "chatSessionId": "sess_383ca575-82e6-4f06-92a1-38ef3d4fcfa4",
+        "timestamp": 1788093159803
+      },
+      {
+        "executionId": "c0964bc7-d281-4e9b-bd6b-fb38ab22ebc4",
+        "chatSessionId": "sess_383ca575-82e6-4f06-92a1-38ef3d4fcfa4",
+        "timestamp": 1788100547784
+      },
+      {
+        "executionId": "7ebdada0-2cd0-4e54-81f5-c1f28d138381",
+        "chatSessionId": "sess_383ca575-82e6-4f06-92a1-38ef3d4fcfa4",
+        "timestamp": 1788102157528
+      },
+      {
+        "executionId": "7ebdada0-2cd0-4e54-81f5-c1f28d138381",
+        "chatSessionId": "sess_383ca575-82e6-4f06-92a1-38ef3d4fcfa4",
+        "timestamp": 1788103351610
       }
     ],
     "11.3 Implement `TaskCard` component": [
@@ -287,6 +627,26 @@
         "executionId": "1db6f845-55c5-4290-a887-de6e0702399c",
         "chatSessionId": "sess_383ca575-82e6-4f06-92a1-38ef3d4fcfa4",
         "timestamp": 1788090975593
+      },
+      {
+        "executionId": "6af70c2b-7426-419b-a25d-7d33b21bf703",
+        "chatSessionId": "sess_383ca575-82e6-4f06-92a1-38ef3d4fcfa4",
+        "timestamp": 1788093159854
+      },
+      {
+        "executionId": "c0964bc7-d281-4e9b-bd6b-fb38ab22ebc4",
+        "chatSessionId": "sess_383ca575-82e6-4f06-92a1-38ef3d4fcfa4",
+        "timestamp": 1788100547882
+      },
+      {
+        "executionId": "7ebdada0-2cd0-4e54-81f5-c1f28d138381",
+        "chatSessionId": "sess_383ca575-82e6-4f06-92a1-38ef3d4fcfa4",
+        "timestamp": 1788102158080
+      },
+      {
+        "executionId": "7ebdada0-2cd0-4e54-81f5-c1f28d138381",
+        "chatSessionId": "sess_383ca575-82e6-4f06-92a1-38ef3d4fcfa4",
+        "timestamp": 1788103352120
       }
     ],
     "11.4 Implement `NotificationBanner` component": [
@@ -294,6 +654,26 @@
         "executionId": "1db6f845-55c5-4290-a887-de6e0702399c",
         "chatSessionId": "sess_383ca575-82e6-4f06-92a1-38ef3d4fcfa4",
         "timestamp": 1788090975642
+      },
+      {
+        "executionId": "6af70c2b-7426-419b-a25d-7d33b21bf703",
+        "chatSessionId": "sess_383ca575-82e6-4f06-92a1-38ef3d4fcfa4",
+        "timestamp": 1788093159895
+      },
+      {
+        "executionId": "c0964bc7-d281-4e9b-bd6b-fb38ab22ebc4",
+        "chatSessionId": "sess_383ca575-82e6-4f06-92a1-38ef3d4fcfa4",
+        "timestamp": 1788100547951
+      },
+      {
+        "executionId": "7ebdada0-2cd0-4e54-81f5-c1f28d138381",
+        "chatSessionId": "sess_383ca575-82e6-4f06-92a1-38ef3d4fcfa4",
+        "timestamp": 1788102158674
+      },
+      {
+        "executionId": "7ebdada0-2cd0-4e54-81f5-c1f28d138381",
+        "chatSessionId": "sess_383ca575-82e6-4f06-92a1-38ef3d4fcfa4",
+        "timestamp": 1788103352704
       }
     ],
     "11.5 Implement `SyllabusProgress` component": [
@@ -301,6 +681,26 @@
         "executionId": "1db6f845-55c5-4290-a887-de6e0702399c",
         "chatSessionId": "sess_383ca575-82e6-4f06-92a1-38ef3d4fcfa4",
         "timestamp": 1788090975692
+      },
+      {
+        "executionId": "6af70c2b-7426-419b-a25d-7d33b21bf703",
+        "chatSessionId": "sess_383ca575-82e6-4f06-92a1-38ef3d4fcfa4",
+        "timestamp": 1788093159934
+      },
+      {
+        "executionId": "c0964bc7-d281-4e9b-bd6b-fb38ab22ebc4",
+        "chatSessionId": "sess_383ca575-82e6-4f06-92a1-38ef3d4fcfa4",
+        "timestamp": 1788100548037
+      },
+      {
+        "executionId": "7ebdada0-2cd0-4e54-81f5-c1f28d138381",
+        "chatSessionId": "sess_383ca575-82e6-4f06-92a1-38ef3d4fcfa4",
+        "timestamp": 1788102159288
+      },
+      {
+        "executionId": "7ebdada0-2cd0-4e54-81f5-c1f28d138381",
+        "chatSessionId": "sess_383ca575-82e6-4f06-92a1-38ef3d4fcfa4",
+        "timestamp": 1788103353300
       }
     ],
     "11.6 Implement Home Dashboard page — `app/page.tsx`": [
@@ -308,6 +708,26 @@
         "executionId": "1db6f845-55c5-4290-a887-de6e0702399c",
         "chatSessionId": "sess_383ca575-82e6-4f06-92a1-38ef3d4fcfa4",
         "timestamp": 1788090975739
+      },
+      {
+        "executionId": "6af70c2b-7426-419b-a25d-7d33b21bf703",
+        "chatSessionId": "sess_383ca575-82e6-4f06-92a1-38ef3d4fcfa4",
+        "timestamp": 1788093159973
+      },
+      {
+        "executionId": "c0964bc7-d281-4e9b-bd6b-fb38ab22ebc4",
+        "chatSessionId": "sess_383ca575-82e6-4f06-92a1-38ef3d4fcfa4",
+        "timestamp": 1788100548099
+      },
+      {
+        "executionId": "7ebdada0-2cd0-4e54-81f5-c1f28d138381",
+        "chatSessionId": "sess_383ca575-82e6-4f06-92a1-38ef3d4fcfa4",
+        "timestamp": 1788103359284
+      },
+      {
+        "executionId": "7ebdada0-2cd0-4e54-81f5-c1f28d138381",
+        "chatSessionId": "sess_383ca575-82e6-4f06-92a1-38ef3d4fcfa4",
+        "timestamp": 1788103896712
       }
     ],
     "11.7 Implement Timetable page — `app/timetable/page.tsx`": [
@@ -315,6 +735,26 @@
         "executionId": "1db6f845-55c5-4290-a887-de6e0702399c",
         "chatSessionId": "sess_383ca575-82e6-4f06-92a1-38ef3d4fcfa4",
         "timestamp": 1788090975793
+      },
+      {
+        "executionId": "6af70c2b-7426-419b-a25d-7d33b21bf703",
+        "chatSessionId": "sess_383ca575-82e6-4f06-92a1-38ef3d4fcfa4",
+        "timestamp": 1788093160042
+      },
+      {
+        "executionId": "c0964bc7-d281-4e9b-bd6b-fb38ab22ebc4",
+        "chatSessionId": "sess_383ca575-82e6-4f06-92a1-38ef3d4fcfa4",
+        "timestamp": 1788100548164
+      },
+      {
+        "executionId": "7ebdada0-2cd0-4e54-81f5-c1f28d138381",
+        "chatSessionId": "sess_383ca575-82e6-4f06-92a1-38ef3d4fcfa4",
+        "timestamp": 1788103359911
+      },
+      {
+        "executionId": "7ebdada0-2cd0-4e54-81f5-c1f28d138381",
+        "chatSessionId": "sess_383ca575-82e6-4f06-92a1-38ef3d4fcfa4",
+        "timestamp": 1788103897280
       }
     ],
     "11.8 Implement Syllabus page — `app/syllabus/page.tsx`": [
@@ -322,6 +762,26 @@
         "executionId": "1db6f845-55c5-4290-a887-de6e0702399c",
         "chatSessionId": "sess_383ca575-82e6-4f06-92a1-38ef3d4fcfa4",
         "timestamp": 1788090975842
+      },
+      {
+        "executionId": "6af70c2b-7426-419b-a25d-7d33b21bf703",
+        "chatSessionId": "sess_383ca575-82e6-4f06-92a1-38ef3d4fcfa4",
+        "timestamp": 1788093160092
+      },
+      {
+        "executionId": "c0964bc7-d281-4e9b-bd6b-fb38ab22ebc4",
+        "chatSessionId": "sess_383ca575-82e6-4f06-92a1-38ef3d4fcfa4",
+        "timestamp": 1788100548215
+      },
+      {
+        "executionId": "7ebdada0-2cd0-4e54-81f5-c1f28d138381",
+        "chatSessionId": "sess_383ca575-82e6-4f06-92a1-38ef3d4fcfa4",
+        "timestamp": 1788103360588
+      },
+      {
+        "executionId": "7ebdada0-2cd0-4e54-81f5-c1f28d138381",
+        "chatSessionId": "sess_383ca575-82e6-4f06-92a1-38ef3d4fcfa4",
+        "timestamp": 1788103897955
       }
     ],
     "11.9 Implement `TilluChat` component and chat route": [
@@ -329,6 +789,26 @@
         "executionId": "1db6f845-55c5-4290-a887-de6e0702399c",
         "chatSessionId": "sess_383ca575-82e6-4f06-92a1-38ef3d4fcfa4",
         "timestamp": 1788090975892
+      },
+      {
+        "executionId": "6af70c2b-7426-419b-a25d-7d33b21bf703",
+        "chatSessionId": "sess_383ca575-82e6-4f06-92a1-38ef3d4fcfa4",
+        "timestamp": 1788093160144
+      },
+      {
+        "executionId": "c0964bc7-d281-4e9b-bd6b-fb38ab22ebc4",
+        "chatSessionId": "sess_383ca575-82e6-4f06-92a1-38ef3d4fcfa4",
+        "timestamp": 1788100548281
+      },
+      {
+        "executionId": "7ebdada0-2cd0-4e54-81f5-c1f28d138381",
+        "chatSessionId": "sess_383ca575-82e6-4f06-92a1-38ef3d4fcfa4",
+        "timestamp": 1788103361541
+      },
+      {
+        "executionId": "7ebdada0-2cd0-4e54-81f5-c1f28d138381",
+        "chatSessionId": "sess_383ca575-82e6-4f06-92a1-38ef3d4fcfa4",
+        "timestamp": 1788103898710
       }
     ],
     "12. Checkpoint — Frontend pages and components complete": [
@@ -336,6 +816,21 @@
         "executionId": "1db6f845-55c5-4290-a887-de6e0702399c",
         "chatSessionId": "sess_383ca575-82e6-4f06-92a1-38ef3d4fcfa4",
         "timestamp": 1788090975958
+      },
+      {
+        "executionId": "6af70c2b-7426-419b-a25d-7d33b21bf703",
+        "chatSessionId": "sess_383ca575-82e6-4f06-92a1-38ef3d4fcfa4",
+        "timestamp": 1788093160188
+      },
+      {
+        "executionId": "c0964bc7-d281-4e9b-bd6b-fb38ab22ebc4",
+        "chatSessionId": "sess_383ca575-82e6-4f06-92a1-38ef3d4fcfa4",
+        "timestamp": 1788100548334
+      },
+      {
+        "executionId": "7ebdada0-2cd0-4e54-81f5-c1f28d138381",
+        "chatSessionId": "sess_383ca575-82e6-4f06-92a1-38ef3d4fcfa4",
+        "timestamp": 1788103929595
       }
     ],
     "13.1 Implement `start.py` launcher": [
@@ -343,6 +838,26 @@
         "executionId": "1db6f845-55c5-4290-a887-de6e0702399c",
         "chatSessionId": "sess_383ca575-82e6-4f06-92a1-38ef3d4fcfa4",
         "timestamp": 1788090975997
+      },
+      {
+        "executionId": "6af70c2b-7426-419b-a25d-7d33b21bf703",
+        "chatSessionId": "sess_383ca575-82e6-4f06-92a1-38ef3d4fcfa4",
+        "timestamp": 1788093160230
+      },
+      {
+        "executionId": "c0964bc7-d281-4e9b-bd6b-fb38ab22ebc4",
+        "chatSessionId": "sess_383ca575-82e6-4f06-92a1-38ef3d4fcfa4",
+        "timestamp": 1788100548397
+      },
+      {
+        "executionId": "7ebdada0-2cd0-4e54-81f5-c1f28d138381",
+        "chatSessionId": "sess_383ca575-82e6-4f06-92a1-38ef3d4fcfa4",
+        "timestamp": 1788103941759
+      },
+      {
+        "executionId": "a8b905b8-86f9-42a1-97da-fde231d1c27c",
+        "chatSessionId": "sess_383ca575-82e6-4f06-92a1-38ef3d4fcfa4",
+        "timestamp": 1788105882571
       }
     ],
     "13.2 Create `run.bat` Windows wrapper": [
@@ -350,6 +865,26 @@
         "executionId": "1db6f845-55c5-4290-a887-de6e0702399c",
         "chatSessionId": "sess_383ca575-82e6-4f06-92a1-38ef3d4fcfa4",
         "timestamp": 1788090976037
+      },
+      {
+        "executionId": "6af70c2b-7426-419b-a25d-7d33b21bf703",
+        "chatSessionId": "sess_383ca575-82e6-4f06-92a1-38ef3d4fcfa4",
+        "timestamp": 1788093160290
+      },
+      {
+        "executionId": "c0964bc7-d281-4e9b-bd6b-fb38ab22ebc4",
+        "chatSessionId": "sess_383ca575-82e6-4f06-92a1-38ef3d4fcfa4",
+        "timestamp": 1788100548449
+      },
+      {
+        "executionId": "7ebdada0-2cd0-4e54-81f5-c1f28d138381",
+        "chatSessionId": "sess_383ca575-82e6-4f06-92a1-38ef3d4fcfa4",
+        "timestamp": 1788103942226
+      },
+      {
+        "executionId": "a8b905b8-86f9-42a1-97da-fde231d1c27c",
+        "chatSessionId": "sess_383ca575-82e6-4f06-92a1-38ef3d4fcfa4",
+        "timestamp": 1788105883296
       }
     ],
     "15. Final checkpoint — full MVP wired and verified": [
@@ -357,6 +892,21 @@
         "executionId": "1db6f845-55c5-4290-a887-de6e0702399c",
         "chatSessionId": "sess_383ca575-82e6-4f06-92a1-38ef3d4fcfa4",
         "timestamp": 1788090976094
+      },
+      {
+        "executionId": "6af70c2b-7426-419b-a25d-7d33b21bf703",
+        "chatSessionId": "sess_383ca575-82e6-4f06-92a1-38ef3d4fcfa4",
+        "timestamp": 1788093160338
+      },
+      {
+        "executionId": "c0964bc7-d281-4e9b-bd6b-fb38ab22ebc4",
+        "chatSessionId": "sess_383ca575-82e6-4f06-92a1-38ef3d4fcfa4",
+        "timestamp": 1788100548514
+      },
+      {
+        "executionId": "a8b905b8-86f9-42a1-97da-fde231d1c27c",
+        "chatSessionId": "sess_383ca575-82e6-4f06-92a1-38ef3d4fcfa4",
+        "timestamp": 1788105889504
       }
     ],
     "1. Project scaffolding — folder structure, dependency files, and environment config": [
@@ -378,6 +928,139 @@
         "executionId": "1db6f845-55c5-4290-a887-de6e0702399c",
         "chatSessionId": "sess_383ca575-82e6-4f06-92a1-38ef3d4fcfa4",
         "timestamp": 1788092510417
+      }
+    ],
+    "3. FastAPI backend core — `db.py`, `main.py`, CORS, global error handler": [
+      {
+        "executionId": "1db6f845-55c5-4290-a887-de6e0702399c",
+        "chatSessionId": "sess_383ca575-82e6-4f06-92a1-38ef3d4fcfa4",
+        "timestamp": 1788092827450
+      }
+    ],
+    "3.3 Write unit tests for `db.py` and `main.py` startup behaviour": [
+      {
+        "executionId": "1db6f845-55c5-4290-a887-de6e0702399c",
+        "chatSessionId": "sess_383ca575-82e6-4f06-92a1-38ef3d4fcfa4",
+        "timestamp": 1788092861412
+      }
+    ],
+    "4.2 Write property test — Property 1: Priority Score Bounded Output": [
+      {
+        "executionId": "1db6f845-55c5-4290-a887-de6e0702399c",
+        "chatSessionId": "sess_383ca575-82e6-4f06-92a1-38ef3d4fcfa4",
+        "timestamp": 1788092879732
+      }
+    ],
+    "4.3 Write property test — Property 2: Priority Score Formula Correctness": [
+      {
+        "executionId": "1db6f845-55c5-4290-a887-de6e0702399c",
+        "chatSessionId": "sess_383ca575-82e6-4f06-92a1-38ef3d4fcfa4",
+        "timestamp": 1788092880364
+      }
+    ],
+    "6. REST API routes — tasks, chapters, sleep logs, mistakes, tests, reminders, sessions": [
+      {
+        "executionId": "6af70c2b-7426-419b-a25d-7d33b21bf703",
+        "chatSessionId": "sess_383ca575-82e6-4f06-92a1-38ef3d4fcfa4",
+        "timestamp": 1788094764398
+      }
+    ],
+    "8. WebSocket manager": [
+      {
+        "executionId": "c0964bc7-d281-4e9b-bd6b-fb38ab22ebc4",
+        "chatSessionId": "sess_383ca575-82e6-4f06-92a1-38ef3d4fcfa4",
+        "timestamp": 1788100554296
+      }
+    ],
+    "9. APScheduler background jobs and agents": [
+      {
+        "executionId": "7ebdada0-2cd0-4e54-81f5-c1f28d138381",
+        "chatSessionId": "sess_383ca575-82e6-4f06-92a1-38ef3d4fcfa4",
+        "timestamp": 1788101751449
+      }
+    ],
+    "11. Next.js frontend shell — pages, components, WebSocket client, and state": [
+      {
+        "executionId": "7ebdada0-2cd0-4e54-81f5-c1f28d138381",
+        "chatSessionId": "sess_383ca575-82e6-4f06-92a1-38ef3d4fcfa4",
+        "timestamp": 1788103898865
+      }
+    ],
+    "14.2 Write integration tests for the full REST + WebSocket flow": [
+      {
+        "executionId": "7ebdada0-2cd0-4e54-81f5-c1f28d138381",
+        "chatSessionId": "sess_383ca575-82e6-4f06-92a1-38ef3d4fcfa4",
+        "timestamp": 1788103942965
+      },
+      {
+        "executionId": "a8b905b8-86f9-42a1-97da-fde231d1c27c",
+        "chatSessionId": "sess_383ca575-82e6-4f06-92a1-38ef3d4fcfa4",
+        "timestamp": 1788105884216
+      }
+    ],
+    "13. Launcher script — `start.py`": [
+      {
+        "executionId": "a8b905b8-86f9-42a1-97da-fde231d1c27c",
+        "chatSessionId": "sess_383ca575-82e6-4f06-92a1-38ef3d4fcfa4",
+        "timestamp": 1788105883354
+      }
+    ],
+    "14. Remaining property-based tests — WebSocket, syllabus, and integration coverage": [
+      {
+        "executionId": "a8b905b8-86f9-42a1-97da-fde231d1c27c",
+        "chatSessionId": "sess_383ca575-82e6-4f06-92a1-38ef3d4fcfa4",
+        "timestamp": 1788105884302
+      }
+    ],
+    "F1. Phase 3 — Playwright/Chromium YouTube playlist integration": [
+      {
+        "executionId": "ece029fa-98fe-4bf8-9ae2-ccfdeebfad28",
+        "chatSessionId": "sess_91727a66-9459-493f-8810-355b22161489",
+        "timestamp": 1788106152576
+      },
+      {
+        "executionId": "ece029fa-98fe-4bf8-9ae2-ccfdeebfad28",
+        "chatSessionId": "sess_91727a66-9459-493f-8810-355b22161489",
+        "timestamp": 1788106381137
+      }
+    ],
+    "F2. Phase 4 — Sarvam STT/TTS voice interaction": [
+      {
+        "executionId": "a670efe2-3003-4830-865b-f20b6bb7dd57",
+        "chatSessionId": "sess_bc786324-e307-4700-bad1-f71a844e6ce3",
+        "timestamp": 1788106931056
+      },
+      {
+        "executionId": "a670efe2-3003-4830-865b-f20b6bb7dd57",
+        "chatSessionId": "sess_bc786324-e307-4700-bad1-f71a844e6ce3",
+        "timestamp": 1788108129778
+      }
+    ],
+    "F3. Phase 6 — RAG document search with pgvector": [
+      {
+        "executionId": "de74f541-203e-4511-a05d-0b933d952cd5",
+        "chatSessionId": "sess_9514284e-ae6c-420b-96b9-67f7cda9ffec",
+        "timestamp": 1788109502905
+      },
+      {
+        "executionId": "adc9710b-8d62-4d63-bd71-b62fca9b6ac6",
+        "chatSessionId": "sess_0ae5216a-e563-47d3-b96f-1ba22173c83a",
+        "timestamp": 1788110851416
+      },
+      {
+        "executionId": "adc9710b-8d62-4d63-bd71-b62fca9b6ac6",
+        "chatSessionId": "sess_0ae5216a-e563-47d3-b96f-1ba22173c83a",
+        "timestamp": 1788111230804
+      },
+      {
+        "executionId": "4342ac99-76d0-413f-b133-10c8be7de35e",
+        "chatSessionId": "sess_1dd8e96b-a7e2-4106-85f6-b2923e05a58a",
+        "timestamp": 1788111240722
+      },
+      {
+        "executionId": "4342ac99-76d0-413f-b133-10c8be7de35e",
+        "chatSessionId": "sess_1dd8e96b-a7e2-4106-85f6-b2923e05a58a",
+        "timestamp": 1788111856451
       }
     ]
   }

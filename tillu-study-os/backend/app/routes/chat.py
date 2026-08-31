@@ -1,11 +1,12 @@
-"""Chat route — placeholder implementation.
-
-Full Tillu AI chat endpoint will be wired in task 11.9.
-"""
+"""Chat route — Tillu AI chat endpoint."""
+import logging
 
 from fastapi import APIRouter
 from pydantic import BaseModel
 
+from app.agents.tillu_brain import ask_tillu
+
+logger = logging.getLogger(__name__)
 router = APIRouter(tags=["chat"])
 
 
@@ -17,5 +18,5 @@ class ChatRequest(BaseModel):
 @router.post("")
 async def chat(body: ChatRequest):
     """Accept a message, forward it to Tillu, and return the response."""
-    # TODO: implement in task 11.9
-    return {"response": "Tillu is not yet wired up. Come back soon!"}
+    response = await ask_tillu(body.message, body.context)
+    return {"response": response}

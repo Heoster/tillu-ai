@@ -1,0 +1,3 @@
+@echo off
+echo Starting Tillu AI Study OS...
+python start.py

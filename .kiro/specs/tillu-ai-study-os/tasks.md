@@ -41,19 +41,19 @@ Incremental build of the full Phase 1 MVP: project scaffold → database schema 
     - Insert all CBSE Class 12 chapters for each subject with their `board_weightage` values
     - _Requirements: 13.1, 13.2_
 
-- [ ] 3. FastAPI backend core — `db.py`, `main.py`, CORS, global error handler
+- [x] 3. FastAPI backend core — `db.py`, `main.py`, CORS, global error handler
   - [x] 3.1 Implement `db.py` — Supabase client singleton with connection probe
     - Write `backend/app/db.py` with `get_client()` singleton and `verify_connection()` async probe
     - Probe queries `profiles` table with 10-second timeout; raises `RuntimeError` on failure
     - _Requirements: 2.4_
-  - [-] 3.2 Implement `main.py` — FastAPI app with lifespan, CORS, and global exception handler
+  - [x] 3.2 Implement `main.py` — FastAPI app with lifespan, CORS, and global exception handler
     - Write `backend/app/main.py` with `lifespan` context manager calling `verify_connection()`, `start_scheduler()`, and `stop_scheduler()`
     - Register CORS middleware using `settings.frontend_origin`
     - Register global `Exception` handler returning HTTP 500 JSON + logging full traceback
     - Expose `GET /health` returning `{"status": "ok"}`
     - Include router placeholders for `tasks`, `dashboard`, and `chat` with correct prefixes
     - _Requirements: 3.1, 3.4, 3.5, 3.6_
-  - [ ]* 3.3 Write unit tests for `db.py` and `main.py` startup behaviour
+  - [x]* 3.3 Write unit tests for `db.py` and `main.py` startup behaviour
     - Test that `verify_connection()` raises on timeout
     - Test that `/health` returns 200
     - Test that unhandled route exceptions return HTTP 500 JSON
@@ -65,20 +65,20 @@ Incremental build of the full Phase 1 MVP: project scaffold → database schema 
     - Implement `clamp()`, `PriorityFactors` dataclass, `compute_priority_score()`, and `compute_deadline_pressure()`
     - Formula: `0.35·w + 0.25·d + 0.20·b + 0.10·bk + 0.10·r` with all inputs clamped to `[0.0, 1.0]`
     - _Requirements: 5.1, 5.4_
-  - [ ]* 4.2 Write property test — Property 1: Priority Score Bounded Output
+  - [x]* 4.2 Write property test — Property 1: Priority Score Bounded Output
     - **Property 1: Priority Score Bounded Output**
     - Use `hypothesis` `@given` with five unclamped floats; assert result ∈ `[0.0, 1.0]`
     - **Validates: Requirements 5.1, 5.4**
-  - [ ]* 4.3 Write property test — Property 2: Priority Score Formula Correctness
+  - [x]* 4.3 Write property test — Property 2: Priority Score Formula Correctness
     - **Property 2: Priority Score Formula Correctness**
     - Use `hypothesis` with five floats pre-clamped to `[0.0, 1.0]`; assert result equals exact weighted sum
     - **Validates: Requirements 5.1**
 
-- [~] 5. Checkpoint — Core infrastructure ready
+- [x] 5. Checkpoint — Core infrastructure ready
   - Ensure all tests pass, ask the user if questions arise.
 
-- [ ] 6. REST API routes — tasks, chapters, sleep logs, mistakes, tests, reminders, sessions
-  - [~] 6.1 Implement task service layer with priority score persistence
+- [x] 6. REST API routes — tasks, chapters, sleep logs, mistakes, tests, reminders, sessions
+  - [x] 6.1 Implement task service layer with priority score persistence
     - Create `backend/app/services/task_service.py`
     - Implement `create_task()` and `update_task()` that call `compute_priority_score()` and persist the result to `study_tasks.priority_score`
     - _Requirements: 5.2, 5.3_
@@ -86,7 +86,7 @@ Incremental build of the full Phase 1 MVP: project scaffold → database schema 
     - **Property 3: Priority Score Persistence Round-Trip**
     - For any valid task creation payload, assert stored `priority_score` equals `compute_priority_score()` on the same inputs
     - **Validates: Requirements 5.2, 5.3**
-  - [~] 6.3 Implement `routes/tasks.py` — task CRUD and session endpoints
+  - [x] 6.3 Implement `routes/tasks.py` — task CRUD and session endpoints
     - Write `GET /tasks/today` returning today's tasks sorted by `priority_score` desc
     - Write `PATCH /tasks/{id}/status` updating status and broadcasting WS `task_update` event
     - Write `POST /tasks/{id}/session/start` creating a `study_sessions` record with status `active`
@@ -97,7 +97,7 @@ Incremental build of the full Phase 1 MVP: project scaffold → database schema 
     - **Property 16: Study Session Actual Duration Accumulation**
     - For K completed sessions per task, assert `actual_duration_min` equals sum of all `duration_min` values
     - **Validates: Requirements 15.4**
-  - [~] 6.5 Implement `routes/chapters.py` — chapter listing and completion
+  - [x] 6.5 Implement `routes/chapters.py` — chapter listing and completion
     - Write `GET /chapters?subject_id=` returning chapters with completion status and weakness score
     - Write `PATCH /chapters/{id}/complete` setting `is_completed=True` and `weakness_score=0.0`
     - _Requirements: 13.3, 13.4_
@@ -105,7 +105,7 @@ Incremental build of the full Phase 1 MVP: project scaffold → database schema 
     - **Property 17: Chapter Completion Zeroes Weakness Score**
     - Assert that after `PATCH /chapters/{id}/complete`, `weakness_score` is `0.0` and priority scores using that chapter reflect zero weakness
     - **Validates: Requirements 13.4**
-  - [~] 6.7 Implement sleep log route — `POST /sleep-logs` with validation
+  - [x] 6.7 Implement sleep log route — `POST /sleep-logs` with validation
     - Write `backend/app/routes/sleep_logs.py` with `POST /sleep-logs`
     - Implement `validate_sleep_log()` — reject when `sleep_end ≤ sleep_start` (with overnight crossing support), return HTTP 400 with descriptive message
     - Store `total_sleep_hours` computed from the interval
@@ -118,7 +118,7 @@ Incremental build of the full Phase 1 MVP: project scaffold → database schema 
     - **Property 8: Sleep Log Duration Computation**
     - For any valid `(sleep_start, sleep_end)` pair, assert stored `total_sleep_hours` equals computed interval in hours
     - **Validates: Requirements 10.3**
-  - [~] 6.10 Implement mistake routes — `POST /mistakes` with upsert and `GET /mistakes`
+  - [x] 6.10 Implement mistake routes — `POST /mistakes` with upsert and `GET /mistakes`
     - Write `backend/app/routes/mistakes.py`
     - `POST /mistakes`: implement `store_mistake()` upsert — increment `recurrence_count` on duplicate `(profile_id, subject_id, chapter_id, description)`
     - `GET /mistakes`: return mistakes grouped by `subject_id, chapter_id`, sorted by `recurrence_count` desc
@@ -131,7 +131,7 @@ Incremental build of the full Phase 1 MVP: project scaffold → database schema 
     - **Property 10: Mistakes Endpoint Sort Order**
     - For any set of mistake records, assert the GET response is in non-increasing order of `recurrence_count`
     - **Validates: Requirements 11.3**
-  - [~] 6.13 Implement test score routes — `POST /tests` with validation and `GET /tests/summary`
+  - [x] 6.13 Implement test score routes — `POST /tests` with validation and `GET /tests/summary`
     - Write `backend/app/routes/tests.py`
     - `POST /tests`: implement `validate_test_score()` — reject `score < 0` or `score > max_score`, return HTTP 400
     - `GET /tests/summary`: return per-subject `AVG(percentage)` grouped by `subject_id`
@@ -148,7 +148,7 @@ Incremental build of the full Phase 1 MVP: project scaffold → database schema 
     - **Property 13: Test Summary Average Correctness**
     - For any set of test records per subject, assert `/tests/summary` average equals arithmetic mean of individual percentages
     - **Validates: Requirements 12.4**
-  - [~] 6.17 Implement reminder routes — `POST /reminders` and `GET /reminders`
+  - [x] 6.17 Implement reminder routes — `POST /reminders` and `GET /reminders`
     - Write `backend/app/routes/reminders.py`
     - `POST /reminders`: store reminder with `status='pending'`
     - `GET /reminders`: return today's reminders with status
@@ -158,11 +158,11 @@ Incremental build of the full Phase 1 MVP: project scaffold → database schema 
     - Assert that once a reminder transitions to `fired`, no subsequent update sets it back to `pending`
     - **Validates: Requirements 14.4**
 
-- [~] 7. Checkpoint — All REST routes complete
+- [x] 7. Checkpoint — All REST routes complete
   - Ensure all tests pass, ask the user if questions arise.
 
-- [ ] 8. WebSocket manager
-  - [~] 8.1 Implement `websocket_manager.py` — `ConnectionManager` with connect, broadcast, and disconnect
+- [x] 8. WebSocket manager
+  - [x] 8.1 Implement `websocket_manager.py` — `ConnectionManager` with connect, broadcast, and disconnect
     - Write `backend/app/websocket_manager.py` with `ConnectionManager` class
     - `connect()`: accept connection, register, send `init` event with today's tasks, run keep-alive receive loop, remove on disconnect
     - `broadcast()`: send JSON event to all registered connections; silently remove dead connections
@@ -174,18 +174,18 @@ Incremental build of the full Phase 1 MVP: project scaffold → database schema 
     - For N connected mock WebSocket clients and any broadcast event, assert all N clients receive the event; assert clients that raise on send are removed without affecting remaining clients
     - **Validates: Requirements 7.3, 7.4, 7.5**
 
-- [ ] 9. APScheduler background jobs and agents
-  - [~] 9.1 Implement `sleep_agent.py` — `get_sleep_window()` with default fallback
+- [x] 9. APScheduler background jobs and agents
+  - [x] 9.1 Implement `sleep_agent.py` — `get_sleep_window()` with default fallback
     - Write `backend/app/agents/sleep_agent.py`
     - Query `sleep_logs` for today; fall back to `settings.default_sleep_start` / `settings.default_sleep_end` with a warning log when no record exists
     - Implement `validate_sleep_log()` helper for overnight crossing
     - _Requirements: 10.4, 10.5_
-  - [~] 9.2 Implement AI provider stubs — `groq_provider.py` and `cerebras_provider.py`
+  - [x] 9.2 Implement AI provider stubs — `groq_provider.py` and `cerebras_provider.py`
     - Write `backend/app/providers/groq_provider.py` with `call_groq(messages) -> str` using `httpx.AsyncClient` against the Groq OpenAI-compatible API
     - Write `backend/app/providers/cerebras_provider.py` with `call_cerebras(messages) -> str` similarly
     - Both providers surface exceptions to the caller; timeout and retry policy handled by `tillu_brain.py`
     - _Requirements: 9.1, 9.2_
-  - [~] 9.3 Implement `tillu_brain.py` — Groq → Cerebras → rule-based fallback
+  - [x] 9.3 Implement `tillu_brain.py` — Groq → Cerebras → rule-based fallback
     - Write `backend/app/agents/tillu_brain.py`
     - `ask_tillu()`: try `call_groq()` with 15-second timeout; on failure try `call_cerebras()` with 15-second timeout; on failure call `_rule_based_plan()`
     - Implement `_rule_based_plan()` sorting context tasks by `priority_score` desc and returning a formatted string
@@ -194,7 +194,7 @@ Incremental build of the full Phase 1 MVP: project scaffold → database schema 
     - **Property 6: Rule-Based Fallback Always Produces a Plan**
     - For any non-empty list of task dicts, assert `_rule_based_plan()` returns a non-empty string containing at least one task entry
     - **Validates: Requirements 9.3**
-  - [~] 9.5 Implement `planner_agent.py` — `run_nightly_plan()` with sleep window enforcement
+  - [x] 9.5 Implement `planner_agent.py` — `run_nightly_plan()` with sleep window enforcement
     - Write `backend/app/agents/planner_agent.py`
     - `run_nightly_plan()`: gather context (sleep window, pending tasks, weakness data, test summary), call `ask_tillu()`, parse response, validate every scheduled block against the sleep window, discard or trim overlapping blocks, write to `study_tasks`, broadcast `daily_plan_created` WS event
     - `check_missed_tasks()`: mark overdue pending tasks as `missed`, broadcast `task_update` WS event per task
@@ -208,13 +208,13 @@ Incremental build of the full Phase 1 MVP: project scaffold → database schema 
     - **Property 5: Nightly Plan Does Not Exceed Available Hours**
     - For any sleep window, assert sum of scheduled task durations ≤ available waking minutes
     - **Validates: Requirements 9.6**
-  - [~] 9.8 Implement `reminder_agent.py` — `check_reminders()` with three-channel dispatch
+  - [x] 9.8 Implement `reminder_agent.py` — `check_reminders()` with three-channel dispatch
     - Write `backend/app/agents/reminder_agent.py`
     - `check_reminders()`: query reminders in the next 5-minute window with `status='pending'`; for each call `_dispatch_reminder()`
     - `_dispatch_reminder()`: call `_send_toast()` (plyer), `_play_chime()` (pygame), broadcast WS `reminder` event, update status to `fired`
     - Each channel failure is caught and logged independently; remaining channels still fire
     - _Requirements: 8.1, 8.2, 8.7, 14.3, 14.4_
-  - [~] 9.9 Implement `scheduler.py` — `AsyncIOScheduler` with three jobs and safe error wrapper
+  - [x] 9.9 Implement `scheduler.py` — `AsyncIOScheduler` with three jobs and safe error wrapper
     - Write `backend/app/scheduler.py`
     - Register nightly plan job (CronTrigger at `settings.scheduler_nightly_hour:settings.scheduler_nightly_minute`)
     - Register reminder check job (IntervalTrigger every 5 minutes)
@@ -223,21 +223,21 @@ Incremental build of the full Phase 1 MVP: project scaffold → database schema 
     - `start_scheduler()` / `stop_scheduler()` called from `main.py` lifespan
     - _Requirements: 6.1, 6.2, 6.3, 6.4, 6.5_
 
-- [~] 10. Checkpoint — Backend complete
+- [x] 10. Checkpoint — Backend complete
   - Ensure all tests pass, ask the user if questions arise.
 
-- [ ] 11. Next.js frontend shell — pages, components, WebSocket client, and state
-  - [~] 11.1 Implement WebSocket client — `lib/socket.ts` with exponential back-off reconnect
+- [x] 11. Next.js frontend shell — pages, components, WebSocket client, and state
+  - [x] 11.1 Implement WebSocket client — `lib/socket.ts` with exponential back-off reconnect
     - Create `frontend/lib/socket.ts`
     - `createWebSocketClient(onMessage)` connects to `ws://localhost:8000/ws`; on close, schedules reconnect with delay starting at 1 s doubling to max 30 s; resets delay to 1 s on successful open; returns cleanup function
     - _Requirements: 7.6_
-  - [~] 11.2 Implement `StudyContext` — React context, reducer, and `useWebSocket` hook
+  - [x] 11.2 Implement `StudyContext` — React context, reducer, and `useWebSocket` hook
     - Create `frontend/lib/study-context.tsx`
     - State: `tasks`, `notifications`
     - Reducer handles: `task_update`, `reminder`, `daily_plan_created`, `task_rescheduled`, `init` WS events
     - `useWebSocket` hook wires `createWebSocketClient` into the context and dispatches events
     - _Requirements: 7.7_
-  - [~] 11.3 Implement `TaskCard` component
+  - [x] 11.3 Implement `TaskCard` component
     - Create `frontend/components/TaskCard.tsx`
     - Display: subject, chapter name, status badge (colour-coded for pending/in-progress/completed/missed), estimated duration, Priority Score bar, Start/Stop/Complete buttons
     - On Start: `POST /tasks/{id}/session/start` → dispatch `task_update` to context
@@ -245,17 +245,17 @@ Incremental build of the full Phase 1 MVP: project scaffold → database schema 
     - On Complete: `PATCH /tasks/{id}/status` → optimistic UI update
     - Show loading skeleton while data is pending
     - _Requirements: 4.1, 4.6, 4.7, 15.1, 15.2, 15.3_
-  - [~] 11.4 Implement `NotificationBanner` component
+  - [x] 11.4 Implement `NotificationBanner` component
     - Create `frontend/components/NotificationBanner.tsx`
     - Renders a dismissable banner when WS `reminder` or `missed` task events arrive
     - Banner visible until student clicks dismiss or navigates away
     - Missed task rows show distinct visual indicator (red border/badge)
     - _Requirements: 8.3, 8.5, 8.6_
-  - [~] 11.5 Implement `SyllabusProgress` component
+  - [x] 11.5 Implement `SyllabusProgress` component
     - Create `frontend/components/SyllabusProgress.tsx`
     - Circular progress ring per subject showing completed/total chapters percentage
     - _Requirements: 4.3, 13.5_
-  - [~] 11.6 Implement Home Dashboard page — `app/page.tsx`
+  - [x] 11.6 Implement Home Dashboard page — `app/page.tsx`
     - Fetch today's tasks from `GET /tasks/today` on mount
     - Render `<TaskCard>` per task sorted by `priority_score` desc
     - Show loading skeleton during fetch
@@ -265,28 +265,28 @@ Incremental build of the full Phase 1 MVP: project scaffold → database schema 
     - Include test score entry form (`POST /tests`)
     - Include reminder creation form (`POST /reminders`)
     - _Requirements: 4.1, 4.6, 4.7, 10.1, 11.1, 12.1, 14.1_
-  - [~] 11.7 Implement Timetable page — `app/timetable/page.tsx`
+  - [x] 11.7 Implement Timetable page — `app/timetable/page.tsx`
     - 7-column calendar grid showing current week
     - Study blocks as colour-coded tiles (one colour per subject)
     - Data from today's tasks plus adjacent days via `GET /tasks/today` (or a date-range endpoint)
     - _Requirements: 4.2_
-  - [~] 11.8 Implement Syllabus page — `app/syllabus/page.tsx`
+  - [x] 11.8 Implement Syllabus page — `app/syllabus/page.tsx`
     - Accordion per subject listing chapters
     - Each chapter row: name, board weightage %, completion toggle (`PATCH /chapters/{id}/complete`), weakness indicator
     - Per-subject completion % from `GET /chapters?subject_id=X`
     - `<SyllabusProgress>` ring per subject
     - _Requirements: 4.3, 13.3, 13.4, 13.5_
-  - [~] 11.9 Implement `TilluChat` component and chat route
+  - [x] 11.9 Implement `TilluChat` component and chat route
     - Create `frontend/components/TilluChat.tsx` with chat input and scrollable message thread
     - Wire to `POST /chat` backend route
     - Write `backend/app/routes/chat.py` — accepts `{message, context}`, calls `ask_tillu()`, returns response text
     - _Requirements: 3.3_
 
-- [~] 12. Checkpoint — Frontend pages and components complete
+- [x] 12. Checkpoint — Frontend pages and components complete
   - Ensure all tests pass, ask the user if questions arise.
 
-- [ ] 13. Launcher script — `start.py`
-  - [~] 13.1 Implement `start.py` launcher
+- [x] 13. Launcher script — `start.py`
+  - [x] 13.1 Implement `start.py` launcher
     - Create `start.py` in the repo root
     - Spawn `uvicorn app.main:app --port {backend_port}` as subprocess in `backend/`
     - Spawn `npm run dev -- --port {frontend_port}` as subprocess in `frontend/`
@@ -294,40 +294,40 @@ Incremental build of the full Phase 1 MVP: project scaffold → database schema 
     - On backend ready, print frontend URL; block until `Ctrl+C` (SIGINT)
     - On SIGINT: send SIGTERM to both child processes and wait for exit
     - _Requirements: 1.1, 1.2, 1.3, 1.4, 1.5_
-  - [~] 13.2 Create `run.bat` Windows wrapper
+  - [x] 13.2 Create `run.bat` Windows wrapper
     - Write `run.bat` that executes `python start.py`
     - _Requirements: 1.1_
 
-- [ ] 14. Remaining property-based tests — WebSocket, syllabus, and integration coverage
+- [x] 14. Remaining property-based tests — WebSocket, syllabus, and integration coverage
   - [ ]* 14.1 Write property test — Property 18: Syllabus Completion Percentage Accuracy
     - **Property 18: Syllabus Completion Percentage Accuracy**
     - For any subject with T total chapters and C completed, assert displayed percentage equals `round((C / T) * 100, 1)`
     - **Validates: Requirements 13.5**
-  - [ ]* 14.2 Write integration tests for the full REST + WebSocket flow
+  - [x]* 14.2 Write integration tests for the full REST + WebSocket flow
     - Use `httpx.AsyncClient` with FastAPI's `TestClient` / `AsyncClient`
     - Cover: task creation → priority score persisted, sleep log rejection, mistake recurrence increment, test score rejection, reminder dispatch cycle
     - _Requirements: 5.2, 10.2, 11.2, 12.2, 14.3_
 
-- [~] 15. Final checkpoint — full MVP wired and verified
+- [x] 15. Final checkpoint — full MVP wired and verified
   - Ensure all tests pass, ask the user if questions arise.
 
 ---
 
 ## Phase 2–6 Future Tasks (Optional)
 
-- [ ]* F1. Phase 3 — Playwright/Chromium YouTube playlist integration
+- [x] F1. Phase 3 — Playwright/Chromium YouTube playlist integration
   - Implement `browser/chromium_controller.py` and `browser/youtube_player.py`
   - Gate behind `PLAYWRIGHT_ENABLED=true` env var; return HTTP 503 when disabled
   - _Requirements: 16.3, 16.4_
-- [ ]* F2. Phase 4 — Sarvam STT/TTS voice interaction
+- [x] F2. Phase 4 — Sarvam STT/TTS voice interaction
   - Implement `providers/sarvam_voice.py` and `routes/voice.py`
   - Gate behind `SARVAM_ENABLED=true`; return HTTP 503 when disabled
   - _Requirements: 17.1, 17.2, 17.3, 17.4_
-- [ ]* F3. Phase 6 — RAG document search with pgvector
+- [x] F3. Phase 6 — RAG document search with pgvector
   - Implement `agents/search_agent.py` and `providers/parallel_mcp.py`
   - Gate behind `RAG_ENABLED=true`; return HTTP 503 when disabled
   - _Requirements: 18.1, 18.2, 18.3, 18.4_
-- [ ]* F4. Phase 2 — Full AI Planner context enrichment
+- [x] F4. Phase 2 — Full AI Planner context enrichment
   - Add weakness boost from top 10 mistake chapters to priority score computation in `planner_agent.py`
   - Pull `/tests/summary` averages into planner context
   - _Requirements: 11.4, 12.5_
