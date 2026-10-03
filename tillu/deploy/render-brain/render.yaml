@@ -1,6 +1,7 @@
 # Render Blueprint — TILLU Brain (Render account A)
-# Point a Render Blueprint at THIS file (deploy/render-brain/render.yaml)
-# or at the repository-root render.yaml (they are kept in sync).
+# Point a Render Blueprint at THIS file (deploy/render-brain/render.yaml).
+# This folder is self-contained: app/, skills/, requirements.txt, Dockerfile.brain
+# are all present here. No files are pulled from apps/api at build time.
 # Do NOT use this file to deploy the Runtime service — use deploy/render-runtime/render.yaml.
 services:
   - type: web
@@ -8,7 +9,7 @@ services:
     runtime: docker
     plan: free
     dockerfilePath: ./deploy/render-brain/Dockerfile.brain
-    dockerContext: ./apps/api
+    dockerContext: ./deploy/render-brain
     healthCheckPath: /api/health/ready
     autoDeployTrigger: commit
     envVars:

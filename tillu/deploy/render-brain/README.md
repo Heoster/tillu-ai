@@ -1,60 +1,111 @@
 # deploy/render-brain — TILLU Brain (Render account A)
 
-This folder is the complete deployment package for the **Brain** service. Point a Render Blueprint at `deploy/render-brain/render.yaml` and Render will build and run the Brain image directly from this config.
+This folder is a **fully self-contained** deployment package for the Brain service. It contains everything the Docker build needs — no files are resolved from `apps/api` or anywhere else in the repository at build time.
 
-## What this folder contains
+## Folder structure
 
-| File | Purpose |
-|------|---------|
-| `render.yaml` | Render Blueprint for the Brain service (account A) |
-| `Dockerfile.brain` | Slim Python 3.13 image — no Playwright, no Chromium |
-| `.dockerignore` | Excludes venv, caches, .db files, tests from the build context |
-| `env.brain.example` | All env vars the Brain service reads, with comments |
-| `README.md` | This file |
+```
+deploy/render-brain/
+├── app/                     # Full FastAPI application source (copied from apps/api/app/)
+│   ├── main.py              # FastAPI entry point, all routes
+│   ├── config.py            # Settings (pydantic-settings, reads from env)
+│   ├── auth.py              # Supabase JWT auth
+│   ├── orchestrator.py      # LangGraph orchestration loop
+│   ├── planner.py           # Plan compiler
+│   ├── providers.py         # Multi-provider AI gateway (Groq, Cerebras, Google, OpenRouter, Cloudflare)
+│   ├── model_library.py     # Model catalogue and routing
+│   ├── honcho_adapter.py    # Honcho long-term memory integration
+│   ├── repository.py        # Storage abstraction (Supabase + SQLite fallback)
+│   ├── supabase_repository.py
+│   ├── learning.py          # Skill parsing, session analysis, memory recall
+│   ├── builtin_skills.py    # Installs skills/ on first owner login
+│   ├── capabilities.py      # Typed capability registry
+│   ├── pipeline.py          # RPC pipeline execution
+│   ├── delegation.py        # Sub-agent delegation
+│   ├── production_readiness.py
+│   └── ...                  # (all other modules)
+├── skills/                  # Built-in Agent Skills
+│   ├── class-12-study-planning/SKILL.md
+│   ├── automation-health-audit/SKILL.md
+│   ├── browser-dom-control/SKILL.md
+│   ├── grounded-research/SKILL.md
+│   └── youtube-music-memory/SKILL.md
+├── tests/                   # pytest test suite (local use; excluded from Docker image)
+├── Dockerfile.brain         # Slim python:3.13-slim image, no Playwright
+├── render.yaml              # Render Blueprint (dockerContext = this folder)
+├── requirements.txt         # Pinned Python dependencies
+├── .env.example             # Full env var reference
+├── env.brain.example        # Brain-specific env var guide with comments
+├── .dockerignore            # Excludes tests, caches, .db, .env from build
+└── README.md                # This file
+```
 
-The Docker build context is `./apps/api` (the `dockerContext` field in `render.yaml`). The `app/` source and `requirements.txt` are pulled from there — this folder holds only the deployment config layer on top.
+## Why self-contained?
+
+`app/builtin_skills.py` resolves the skills directory as:
+```python
+SKILLS_ROOT = Path(__file__).resolve().parents[2] / 'skills'
+```
+That means `skills/` must sit two levels above `app/` inside the image — i.e. at `/app/skills/`. The Dockerfile copies both `app/` and `skills/` into `/app/`, satisfying the path contract without any bind mounts or cross-context copies.
 
 ## How to deploy (Render account A)
 
 1. In Render account A → **Blueprints** → **New Blueprint Instance**.
-2. Connect your repository and set the **Blueprint file path** to `deploy/render-brain/render.yaml`.
-3. Render will detect the `tillu-brain` service and start the first deploy.
+2. Connect your repository. Set **Blueprint file path** to `deploy/render-brain/render.yaml`.
+3. Render builds the image using `deploy/render-brain/` as the Docker context — fully local, no cross-directory paths.
 4. In the service's **Environment** tab, fill in every `sync: false` variable:
 
 ### Required env vars
 
 | Variable | Notes |
 |----------|-------|
-| `SUPABASE_URL` | Your Supabase project URL |
+| `SUPABASE_URL` | Supabase project URL |
 | `SUPABASE_ANON_KEY` | Supabase anon key |
-| `SUPABASE_SERVICE_ROLE_KEY` | Supabase service-role key (never expose to browser) |
+| `SUPABASE_SERVICE_ROLE_KEY` | Never expose to browser |
 | `OWNER_USER_ID` | Heoster's Supabase `auth.users` UUID |
 | `CORS_ORIGINS` | Exact Vercel origin, e.g. `https://tillu.vercel.app` |
-| `PUBLIC_APP_URL` | Same as CORS_ORIGINS (the Vercel URL) |
-| `RUNTIME_INTERNAL_URL` | Internal URL of the Runtime service on Render account B |
-| `TILLU_INTERNAL_SECRET` | Shared secret with Runtime — generate with `openssl rand -hex 32` |
-| `CRON_SECRET` | Protect `/api/internal/*` cron endpoints |
-| `RPC_CAPABILITY_SECRET` | Protect inter-service RPC |
-| `BACKUP_ENCRYPTION_KEY` | Encrypt at-rest backups |
-| `HONCHO_API_KEY` | Honcho long-term memory API key |
-| At least one of: `GROQ_API_KEY`, `CEREBRAS_API_KEY`, `GOOGLE_API_KEY`, `OPENROUTER_API_KEY`, `CLOUDFLARE_ACCOUNT_ID`+`CLOUDFLARE_API_TOKEN` | Model provider |
+| `PUBLIC_APP_URL` | Same as CORS_ORIGINS |
+| `RUNTIME_INTERNAL_URL` | Internal URL of the Runtime service (account B) |
+| `TILLU_INTERNAL_SECRET` | Shared secret with Runtime — `openssl rand -hex 32` |
+| `CRON_SECRET` | Protects `/api/internal/*` |
+| `RPC_CAPABILITY_SECRET` | Protects inter-service RPC |
+| `BACKUP_ENCRYPTION_KEY` | At-rest backup encryption |
+| `HONCHO_API_KEY` | Honcho long-term memory key |
+| At least one of: `GROQ_API_KEY`, `CEREBRAS_API_KEY`, `GOOGLE_API_KEY`, `OPENROUTER_API_KEY`, `CLOUDFLARE_ACCOUNT_ID` + `CLOUDFLARE_API_TOKEN` | AI model provider |
 
-See `env.brain.example` for the full list.
+See `env.brain.example` for the full annotated list.
 
 ## Local build and run
 
 ```bash
-# Build (run from repo root — context is apps/api)
-docker build -f deploy/render-brain/Dockerfile.brain apps/api -t tillu-brain
+# From repo root — context is this folder
+docker build -f deploy/render-brain/Dockerfile.brain deploy/render-brain -t tillu-brain
 
-# Run
+# Run with example env (fill real values first)
 docker run --rm -p 8000:8000 --env-file deploy/render-brain/env.brain.example tillu-brain
 ```
 
 Health check: `curl http://localhost:8000/api/health/live`
 
-## Relationship to other manifests
+## Running tests locally
 
-- `deploy/brain/render.yaml` and the repo-root `render.yaml` are the original manifests pointing at `apps/api/Dockerfile.brain`. They remain valid.
-- This folder (`deploy/render-brain/`) bundles all Brain deployment files together for clarity. Its `render.yaml` points `dockerfilePath` at `./deploy/render-brain/Dockerfile.brain` instead, so both approaches build the same image.
-- For the Runtime service, see `deploy/render-runtime/`.
+```bash
+cd deploy/render-brain
+python -m venv .venv && .venv/Scripts/activate   # Windows
+pip install -r requirements.txt
+PYTHONPATH=. pytest tests -q
+```
+
+## Keeping in sync with apps/api
+
+This folder is a **copy** of `apps/api`. When you update `apps/api/app/`, `skills/`, `requirements.txt`, or tests, re-sync with:
+
+```bash
+# From repo root (PowerShell)
+Copy-Item -Path apps/api/app    -Destination deploy/render-brain/app    -Recurse -Force
+Copy-Item -Path skills          -Destination deploy/render-brain/skills  -Recurse -Force
+Copy-Item -Path apps/api/requirements.txt -Destination deploy/render-brain/requirements.txt -Force
+Copy-Item -Path apps/api/tests  -Destination deploy/render-brain/tests   -Recurse -Force
+```
+
+For the Runtime package, see `deploy/render-runtime/`.

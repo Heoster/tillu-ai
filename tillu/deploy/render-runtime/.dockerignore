@@ -1,9 +1,13 @@
+# Exclude from Docker build image (tests are for local pytest only)
 .venv
 __pycache__
+**/__pycache__
 .pytest_cache
 *.pyc
 *.db
 .env
+.env.*
+!.env.example
 library
 browser-artifacts
 tests
