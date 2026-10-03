@@ -1,0 +1,73 @@
+# Default Render Blueprint: TILLU Brain (Render account A).
+# For the separate Docker/runtime service in Render account B, use deploy/runtime/render.yaml.
+# The accepted topology is fixed in docs/ADR-001_HOSTING_TOPOLOGY.md.
+services:
+  - type: web
+    name: tillu-brain
+    runtime: docker
+    plan: free
+    dockerfilePath: ./apps/api/Dockerfile.brain
+    dockerContext: ./apps/api
+    healthCheckPath: /api/health/ready
+    autoDeployTrigger: commit
+    envVars:
+      - key: ENVIRONMENT
+        value: production
+      - key: SERVICE_ROLE
+        value: brain
+      - key: SERVICE_NAME
+        value: tillu-brain
+      - key: BUILD_SHA
+        sync: false
+      - key: WEB_CONCURRENCY
+        value: "1"
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_ANON_KEY
+        sync: false
+      - key: SUPABASE_SERVICE_ROLE_KEY
+        sync: false
+      - key: OWNER_USER_ID
+        sync: false
+      - key: OWNER_EMAIL
+        sync: false
+      - key: CORS_ORIGINS
+        sync: false
+      - key: PUBLIC_APP_URL
+        sync: false
+      - key: RUNTIME_INTERNAL_URL
+        sync: false
+      - key: TILLU_INTERNAL_SECRET
+        sync: false
+      - key: CRON_SECRET
+        sync: false
+      - key: RPC_CAPABILITY_SECRET
+        sync: false
+      - key: BACKUP_ENCRYPTION_KEY
+        sync: false
+      - key: HONCHO_REQUIRED
+        value: "true"
+      - key: HONCHO_API_KEY
+        sync: false
+      - key: HONCHO_BASE_URL
+        value: https://api.honcho.dev
+      - key: HONCHO_WORKSPACE_ID
+        value: tillu-heoster
+      - key: HONCHO_USER_PEER
+        value: heoster
+      - key: HONCHO_ASSISTANT_PEER
+        value: tillu
+      - key: HONCHO_REASONING_LEVEL
+        value: medium
+      - key: GROQ_API_KEY
+        sync: false
+      - key: CEREBRAS_API_KEY
+        sync: false
+      - key: GOOGLE_API_KEY
+        sync: false
+      - key: OPENROUTER_API_KEY
+        sync: false
+      - key: CLOUDFLARE_ACCOUNT_ID
+        sync: false
+      - key: CLOUDFLARE_API_TOKEN
+        sync: false

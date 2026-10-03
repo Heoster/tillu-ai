@@ -1,0 +1,37 @@
+name: TILLU Deploy Health Check
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  health-check:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check Brain liveness
+        id: brain
+        continue-on-error: true
+        run: |
+          STATUS=$(curl -s -o /dev/null -w "%{http_code}" --max-time 30 "${{ secrets.TILLU_BRAIN_URL }}/api/health/live")
+          echo "Brain HTTP status: $STATUS"
+          echo "status=$STATUS" >> "$GITHUB_OUTPUT"
+          if [ "$STATUS" != "200" ]; then
+            echo "::warning::Brain health check returned $STATUS (may be cold-starting)"
+          fi
+
+      - name: Check Runtime liveness
+        id: runtime
+        continue-on-error: true
+        run: |
+          STATUS=$(curl -s -o /dev/null -w "%{http_code}" --max-time 30 "${{ secrets.TILLU_RUNTIME_URL }}/api/health/live")
+          echo "Runtime HTTP status: $STATUS"
+          echo "status=$STATUS" >> "$GITHUB_OUTPUT"
+          if [ "$STATUS" != "200" ]; then
+            echo "::warning::Runtime health check returned $STATUS (may be cold-starting)"
+          fi
+
+      - name: Summary
+        run: |
+          echo "Brain:   ${{ steps.brain.outputs.status }}"
+          echo "Runtime: ${{ steps.runtime.outputs.status }}"
