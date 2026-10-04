@@ -10,11 +10,8 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
         response=await call_next(request)
         response.headers['x-request-id']=request_id
         response.headers['x-content-type-options']='nosniff'
-        response.headers['x-frame-options']='DENY'
         response.headers['referrer-policy']='strict-origin-when-cross-origin'
-        response.headers['permissions-policy']='camera=(), geolocation=(), payment=()'
         response.headers['cache-control']='no-store' if request.url.path.startswith('/api/') else 'public, max-age=300'
-        response.headers['strict-transport-security']='max-age=31536000; includeSubDomains'
         return response
 
 class RateLimitMiddleware(BaseHTTPMiddleware):

@@ -1,0 +1,702 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Tillu Runtime — Browser Explorer</title>
+<style>
+  *{box-sizing:border-box;margin:0;padding:0}
+  :root{
+    --bg:#0d0b14;--surface:#13111e;--surface2:#1a1728;--surface3:#221f30;
+    --line:#2a2638;--text:#e8e4f0;--muted:#6b6480;--accent:#7c5cbf;
+    --accent2:#9b7ee0;--success:#48d594;--warn:#ffb84d;--danger:#ff6b6b;
+  }
+  html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);font:13px/1.5 'Inter',system-ui,sans-serif}
+
+  /* ── Layout ── */
+  #app{height:100vh;display:flex;flex-direction:column}
+  #titlebar{height:48px;display:flex;align-items:center;gap:12px;padding:0 16px;background:var(--surface);border-bottom:1px solid var(--line);flex-shrink:0}
+  #titlebar .logo{font:700 14px 'Inter';letter-spacing:.04em;color:var(--accent2)}
+  #titlebar .logo span{color:var(--muted);font-weight:400}
+  #titlebar .status-dot{width:8px;height:8px;border-radius:50%;background:var(--muted);flex-shrink:0;transition:background .3s}
+  #titlebar .status-dot.ready{background:var(--success);box-shadow:0 0 6px var(--success)}
+  #titlebar .status-dot.busy{background:var(--warn);animation:pulse 1s infinite}
+  #titlebar .status-dot.error{background:var(--danger)}
+  #status-text{font-size:11px;color:var(--muted)}
+  #titlebar .spacer{flex:1}
+  #auth-badge{font-size:10px;color:var(--muted);border:1px solid var(--line);border-radius:20px;padding:3px 9px}
+  #auth-badge.ok{color:var(--success);border-color:color-mix(in srgb,var(--success) 30%,transparent)}
+
+  #main{flex:1;display:flex;overflow:hidden;min-height:0}
+
+  /* ── Auth overlay ── */
+  #auth-overlay{position:absolute;inset:0;background:rgba(13,11,20,.92);display:flex;align-items:center;justify-content:center;z-index:100;backdrop-filter:blur(4px)}
+  #auth-overlay.hidden{display:none}
+  .auth-card{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:32px;width:360px;display:flex;flex-direction:column;gap:16px}
+  .auth-card h2{font-size:18px;color:var(--accent2)}
+  .auth-card p{font-size:12px;color:var(--muted);line-height:1.6}
+  .auth-card input{background:var(--surface2);border:1px solid var(--line);border-radius:8px;padding:10px 12px;color:var(--text);font-size:12px;outline:none;width:100%}
+  .auth-card input:focus{border-color:var(--accent)}
+  .auth-card .btn-primary{border:0;background:var(--accent);color:#fff;border-radius:8px;padding:10px;font-size:13px;cursor:pointer;width:100%}
+  .auth-card .btn-primary:hover{background:var(--accent2)}
+  .auth-card .err{color:var(--danger);font-size:11px;display:none}
+  .auth-card .err.show{display:block}
+  .auth-card .skip{border:0;background:none;color:var(--muted);font-size:11px;cursor:pointer;text-decoration:underline}
+
+  /* ── Toolbar (address bar) ── */
+  #toolbar{height:46px;display:flex;align-items:center;gap:6px;padding:0 10px;background:var(--surface);border-bottom:1px solid var(--line);flex-shrink:0}
+  .nav-btn{width:30px;height:30px;border:1px solid transparent;background:none;color:var(--muted);border-radius:7px;cursor:pointer;display:grid;place-items:center;font-size:15px;transition:background .12s,color .12s}
+  .nav-btn:hover:not(:disabled){background:var(--surface2);color:var(--text);border-color:var(--line)}
+  .nav-btn:disabled{opacity:.3;cursor:default}
+  .nav-btn.danger:hover:not(:disabled){background:#3d1818;color:var(--danger);border-color:#5a2020}
+  #url-form{flex:1;display:flex;align-items:center;background:var(--surface2);border:1px solid var(--line);border-radius:8px;overflow:hidden;transition:border-color .15s;position:relative}
+  #url-form:focus-within{border-color:var(--accent)}
+  #lock-icon{padding:0 8px;font-size:13px;flex-shrink:0;line-height:1;user-select:none}
+  #url-input{flex:1;background:none;border:0;outline:none;color:var(--text);font-size:13px;padding:7px 10px 7px 0;min-width:0}
+  #progress-bar{position:absolute;bottom:0;left:0;right:0;height:2px;background:linear-gradient(90deg,var(--accent) 0%,color-mix(in srgb,var(--accent) 40%,transparent) 60%,transparent 100%);display:none;animation:progress-sweep 1.3s ease-in-out infinite}
+  @keyframes progress-sweep{0%{transform:translateX(-100%)}100%{transform:translateX(100%)}}
+  #progress-bar.show{display:block}
+  #launch-btn{border:0;background:var(--accent);color:#fff;border-radius:7px;padding:6px 16px;font-size:12px;cursor:pointer;white-space:nowrap;flex-shrink:0}
+  #launch-btn:hover{background:var(--accent2)}
+  #launch-btn:disabled{opacity:.5;cursor:default}
+  #sidebar-toggle{width:30px;height:30px;border:1px solid var(--line);background:var(--surface2);color:var(--muted);border-radius:7px;cursor:pointer;display:grid;place-items:center;font-size:13px}
+  #sidebar-toggle:hover{color:var(--text)}
+
+  /* ── Page title strip ── */
+  #page-strip{height:26px;display:none;align-items:center;gap:8px;padding:0 12px;background:var(--surface2);border-bottom:1px solid var(--line);flex-shrink:0;font-size:10px;overflow:hidden}
+  #page-strip.show{display:flex}
+  #page-title{font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:300px}
+  #page-url{color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex:1}
+
+  /* ── Error bar ── */
+  #err-bar{display:none;align-items:center;justify-content:space-between;gap:8px;padding:6px 14px;background:#2a1018;color:var(--danger);font-size:12px;border-bottom:1px solid #5a2020;flex-shrink:0}
+  #err-bar.show{display:flex}
+  #err-bar button{background:none;border:none;color:var(--danger);cursor:pointer;font-size:16px;line-height:1}
+
+  /* ── Viewport area ── */
+  #viewport-row{flex:1;display:flex;overflow:hidden;min-height:0}
+
+  /* ── Canvas zone ── */
+  #canvas-zone{flex:1;overflow:hidden;background:#000;display:flex;align-items:center;justify-content:center;position:relative}
+  #browser-canvas{display:block;max-width:100%;max-height:100%;cursor:crosshair;outline:none}
+  #browser-canvas.focused{outline:2px solid var(--accent)}
+  .canvas-badge{position:absolute;left:50%;transform:translateX(-50%);background:rgba(0,0,0,.8);padding:5px 16px;border-radius:20px;font-size:12px;pointer-events:none;white-space:nowrap}
+  #loading-badge{top:10px;color:var(--warn);display:none}
+  #loading-badge.show{display:block}
+  #focus-hint{bottom:8px;color:rgba(255,255,255,.6);font-size:10px}
+  #empty-state{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;opacity:.5}
+  #empty-state svg{width:56px;height:56px;stroke:currentColor;fill:none;stroke-width:1.5}
+  #empty-state h2{font-size:20px}
+  #empty-state p{font-size:13px;color:var(--muted);text-align:center;max-width:360px;line-height:1.6}
+  #empty-state button{border:0;background:var(--accent);color:#fff;border-radius:8px;padding:11px 28px;font-size:15px;cursor:pointer}
+  #empty-state button:hover{background:var(--accent2)}
+  #empty-state button:disabled{opacity:.5;cursor:default}
+
+  /* ── Sidebar ── */
+  #sidebar{width:220px;border-left:1px solid var(--line);display:flex;flex-direction:column;background:var(--surface);flex-shrink:0;transition:width .18s,opacity .18s;overflow:hidden}
+  #sidebar.hidden{width:0;opacity:0;pointer-events:none}
+
+  .sidebar-tabs{display:flex;border-bottom:1px solid var(--line);flex-shrink:0}
+  .stab{flex:1;padding:8px 4px;background:none;border:none;border-bottom:2px solid transparent;cursor:pointer;font-size:9px;color:var(--muted);display:flex;align-items:center;justify-content:center;gap:3px;transition:color .1s,border-color .1s}
+  .stab.active{color:var(--text);border-bottom-color:var(--accent)}
+  .sbadge{background:var(--surface2);border-radius:9px;padding:1px 5px;font-size:8px;color:var(--muted)}
+
+  .sidebar-list{flex:1;overflow-y:auto;overflow-x:hidden}
+  .sidebar-list::-webkit-scrollbar{width:4px}
+  .sidebar-list::-webkit-scrollbar-thumb{background:var(--line);border-radius:4px}
+  .srow{display:flex;align-items:center;gap:6px;padding:5px 8px;border-bottom:1px solid var(--line);font-size:10px}
+  .stag{font-size:8px;color:var(--muted);flex-shrink:0;min-width:28px;font-family:monospace}
+  .slabel{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--text)}
+  .slabel.dim{opacity:.4}
+  .sact{flex-shrink:0;font-size:8px;padding:2px 7px;background:var(--surface2);border:1px solid var(--line);color:var(--text);border-radius:4px;cursor:pointer}
+  .sact:hover{background:var(--surface3);border-color:var(--accent)}
+  .sact:disabled{opacity:.3;cursor:default}
+  .sempty{padding:18px 12px;text-align:center;color:var(--muted);font-size:10px;line-height:1.6}
+
+  /* ── Sessions panel (bottom of sidebar) ── */
+  #session-info{border-top:1px solid var(--line);padding:8px;flex-shrink:0}
+  #session-info .srow{border:0;padding:3px 0}
+  #session-id-label{font-size:8px;color:var(--muted);font-family:monospace;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+
+  /* ── Keyboard shortcut hint bar ── */
+  #hint-bar{height:22px;display:flex;align-items:center;gap:16px;padding:0 14px;background:var(--surface);border-top:1px solid var(--line);flex-shrink:0}
+  .hint{font-size:9px;color:var(--muted);display:flex;align-items:center;gap:4px}
+  .hint kbd{background:var(--surface2);border:1px solid var(--line);border-radius:3px;padding:1px 4px;font-size:8px;font-family:monospace;color:var(--text)}
+
+  @keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
+
+  /* ── Scrollbar global ── */
+  ::-webkit-scrollbar{width:5px;height:5px}
+  ::-webkit-scrollbar-thumb{background:var(--line);border-radius:5px}
+</style>
+</head>
+<body>
+<div id="app">
+
+  <!-- Auth overlay -->
+  <div id="auth-overlay">
+    <div class="auth-card">
+      <h2>🔒 Runtime Access</h2>
+      <p>Enter your Supabase Bearer token to access the runtime browser explorer. In development mode (no Supabase configured) you can skip this.</p>
+      <input id="token-input" type="password" placeholder="eyJhbGciOiJIUzI1NiIs…" autocomplete="off"/>
+      <div class="err" id="auth-err">Invalid token or access denied.</div>
+      <button class="btn-primary" id="auth-submit">Connect</button>
+      <button class="skip" id="auth-skip">Skip (dev mode / no auth)</button>
+    </div>
+  </div>
+
+  <!-- Title bar -->
+  <div id="titlebar">
+    <div class="logo">TILLU <span>runtime</span></div>
+    <div class="status-dot" id="status-dot"></div>
+    <span id="status-text">not connected</span>
+    <div class="spacer"></div>
+    <div id="auth-badge">no auth</div>
+  </div>
+
+  <!-- Toolbar -->
+  <div id="toolbar">
+    <button class="nav-btn" id="btn-back" disabled title="Back (Alt+←)">&#8592;</button>
+    <button class="nav-btn" id="btn-forward" disabled title="Forward (Alt+→)">&#8594;</button>
+    <button class="nav-btn" id="btn-reload" disabled title="Reload (Ctrl+R)">&#8635;</button>
+    <form id="url-form" onsubmit="return false">
+      <span id="lock-icon">🌐</span>
+      <input id="url-input" type="text" value="https://google.com" placeholder="Search or enter address" autocomplete="off" spellcheck="false"/>
+      <div id="progress-bar"></div>
+    </form>
+    <button id="launch-btn">🚀 Launch</button>
+    <button class="nav-btn danger" id="btn-close" disabled title="Close session" style="font-size:12px">✕</button>
+    <button id="sidebar-toggle" title="Toggle panel">⊟</button>
+  </div>
+
+  <!-- Page title strip -->
+  <div id="page-strip">
+    <span id="page-title"></span>
+    <span id="page-url"></span>
+  </div>
+
+  <!-- Error bar -->
+  <div id="err-bar">
+    <span id="err-msg"></span>
+    <button onclick="hideErr()">✕</button>
+  </div>
+
+  <!-- Main viewport row -->
+  <div id="viewport-row">
+
+    <!-- Canvas zone -->
+    <div id="canvas-zone">
+      <canvas id="browser-canvas" width="1280" height="800" tabindex="0"></canvas>
+
+      <div class="canvas-badge" id="loading-badge">Loading…</div>
+
+      <div id="empty-state">
+        <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
+        <h2>Browser Explorer</h2>
+        <p>Enter an address and launch a live Playwright session. Click, scroll, and type directly on the canvas.</p>
+        <button id="empty-launch-btn" disabled>🚀 Launch browser</button>
+      </div>
+
+      <div class="canvas-badge" id="focus-hint" style="bottom:8px;top:auto">Click canvas · type directly · Ctrl+L for address</div>
+    </div>
+
+    <!-- Sidebar -->
+    <div id="sidebar">
+      <div class="sidebar-tabs">
+        <button class="stab active" data-tab="el">All<span class="sbadge" id="badge-el">0</span></button>
+        <button class="stab" data-tab="lk">Links<span class="sbadge" id="badge-lk">0</span></button>
+        <button class="stab" data-tab="in">Inputs<span class="sbadge" id="badge-in">0</span></button>
+        <button class="stab" data-tab="bt">Buttons<span class="sbadge" id="badge-bt">0</span></button>
+      </div>
+      <div class="sidebar-list" id="sidebar-list"></div>
+      <div id="session-info" style="display:none">
+        <div class="srow"><span class="stag">session</span><span id="session-id-label">—</span></div>
+      </div>
+    </div>
+
+  </div><!-- /viewport-row -->
+
+  <!-- Keyboard hints -->
+  <div id="hint-bar">
+    <div class="hint"><kbd>Ctrl+L</kbd> address bar</div>
+    <div class="hint"><kbd>Ctrl+R</kbd> reload</div>
+    <div class="hint"><kbd>Alt+←/→</kbd> back/forward</div>
+    <div class="hint"><kbd>Scroll</kbd> scroll page</div>
+    <div class="hint" style="margin-left:auto;color:var(--accent)" id="fps-label">— fps</div>
+  </div>
+
+</div><!-- /app -->
+
+<script>
+'use strict';
+
+// ── Config ────────────────────────────────────────────────────────────────────
+const VPORT_W = 1280, VPORT_H = 800;
+let API = '';          // relative — same origin
+let AUTH_TOKEN = '';   // Bearer token (empty = dev mode)
+
+// ── State ─────────────────────────────────────────────────────────────────────
+let sessionId = '';
+let currentUrl = 'https://google.com';
+let elements = [];
+let isLoading = false;
+let sidebarOpen = true;
+let activeTab = 'el';
+let streamAbort = null;
+let moveTimer = null;
+let canvasFocused = false;
+let frameCount = 0, fpsTimer = 0;
+
+// ── DOM refs ──────────────────────────────────────────────────────────────────
+const canvas       = document.getElementById('browser-canvas');
+const ctx          = canvas.getContext('2d');
+const urlInput     = document.getElementById('url-input');
+const statusDot    = document.getElementById('status-dot');
+const statusText   = document.getElementById('status-text');
+const authBadge    = document.getElementById('auth-badge');
+const loadingBadge = document.getElementById('loading-badge');
+const emptyState   = document.getElementById('empty-state');
+const pageStrip    = document.getElementById('page-strip');
+const pageTitle    = document.getElementById('page-title');
+const pageUrl      = document.getElementById('page-url');
+const errBar       = document.getElementById('err-bar');
+const errMsg       = document.getElementById('err-msg');
+const progressBar  = document.getElementById('progress-bar');
+const sidebarList  = document.getElementById('sidebar-list');
+const sessionIdLabel = document.getElementById('session-id-label');
+const sessionInfo  = document.getElementById('session-info');
+const focusHint    = document.getElementById('focus-hint');
+const fpsLabel     = document.getElementById('fps-label');
+
+// ── API helpers ───────────────────────────────────────────────────────────────
+function apiHeaders(extra = {}) {
+  const h = { 'content-type': 'application/json', ...extra };
+  if (AUTH_TOKEN) h['authorization'] = 'Bearer ' + AUTH_TOKEN;
+  return h;
+}
+
+async function api(path, opts = {}) {
+  const res = await fetch(API + path, {
+    ...opts,
+    headers: { ...apiHeaders(), ...(opts.headers || {}) }
+  });
+  if (!res.ok) {
+    const d = await res.json().catch(() => ({}));
+    throw new Error(d.detail || `HTTP ${res.status}`);
+  }
+  return res.json();
+}
+
+// ── Auth ──────────────────────────────────────────────────────────────────────
+document.getElementById('auth-submit').onclick = async () => {
+  const tok = document.getElementById('token-input').value.trim();
+  if (!tok) return;
+  AUTH_TOKEN = tok;
+  try {
+    await api('/api/health');
+    closeAuthOverlay();
+  } catch {
+    document.getElementById('auth-err').classList.add('show');
+    AUTH_TOKEN = '';
+  }
+};
+
+document.getElementById('auth-skip').onclick = async () => {
+  AUTH_TOKEN = '';
+  try { await api('/api/health'); } catch { /* will show error later */ }
+  closeAuthOverlay();
+};
+
+document.getElementById('token-input').onkeydown = e => {
+  if (e.key === 'Enter') document.getElementById('auth-submit').click();
+};
+
+function closeAuthOverlay() {
+  document.getElementById('auth-overlay').classList.add('hidden');
+  authBadge.textContent = AUTH_TOKEN ? '🔐 authenticated' : '🔓 dev mode';
+  authBadge.classList.toggle('ok', true);
+  document.getElementById('empty-launch-btn').disabled = false;
+  document.getElementById('launch-btn').disabled = false;
+  setStatus('idle', 'ready');
+}
+
+// ── Status ────────────────────────────────────────────────────────────────────
+function setStatus(dot, text) {
+  statusDot.className = 'status-dot ' + dot;
+  statusText.textContent = text;
+}
+
+// ── Errors ────────────────────────────────────────────────────────────────────
+function showErr(msg) {
+  errMsg.textContent = msg;
+  errBar.classList.add('show');
+}
+function hideErr() { errBar.classList.remove('show'); }
+
+// ── Loading state ─────────────────────────────────────────────────────────────
+function setLoading(v) {
+  isLoading = v;
+  loadingBadge.classList.toggle('show', v && !!sessionId);
+  progressBar.classList.toggle('show', v);
+  document.getElementById('btn-reload').textContent = v ? '✕' : '⟳';
+  document.getElementById('btn-reload').title = v ? 'Stop' : 'Reload (Ctrl+R)';
+}
+
+// ── MJPEG stream ──────────────────────────────────────────────────────────────
+async function startStream(sid) {
+  if (streamAbort) streamAbort.abort();
+  const ctrl = new AbortController();
+  streamAbort = ctrl;
+  const headers = {};
+  if (AUTH_TOKEN) headers['authorization'] = 'Bearer ' + AUTH_TOKEN;
+  try {
+    const res = await fetch(`${API}/api/browser-control/sessions/${sid}/stream?fps=15`, {
+      headers, signal: ctrl.signal
+    });
+    if (!res.ok) return;
+    const reader = res.body.getReader();
+    let buf = new Uint8Array(0);
+    fpsTimer = Date.now();
+    while (true) {
+      const { value, done } = await reader.read();
+      if (done) break;
+      const tmp = new Uint8Array(buf.length + value.length);
+      tmp.set(buf); tmp.set(value, buf.length); buf = tmp;
+      let i = 0;
+      while (i < buf.length - 1) {
+        if (buf[i] === 0xFF && buf[i+1] === 0xD8) {
+          let j = i + 2;
+          while (j < buf.length - 1) {
+            if (buf[j] === 0xFF && buf[j+1] === 0xD9) { j += 2; break; }
+            j++;
+          }
+          if (j < buf.length) {
+            const jpeg = buf.slice(i, j);
+            const blob = new Blob([jpeg], { type: 'image/jpeg' });
+            const burl = URL.createObjectURL(blob);
+            const img = new Image();
+            img.onload = () => {
+              ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+              URL.revokeObjectURL(burl);
+              frameCount++;
+              const now = Date.now();
+              if (now - fpsTimer >= 1000) {
+                fpsLabel.textContent = frameCount + ' fps';
+                frameCount = 0; fpsTimer = now;
+              }
+            };
+            img.src = burl;
+            buf = buf.slice(j); i = 0;
+          } else break;
+        } else i++;
+      }
+    }
+  } catch(e) {
+    if (e.name !== 'AbortError') showErr('Stream lost — reload page to reconnect');
+  }
+}
+
+function stopStream() {
+  if (streamAbort) { streamAbort.abort(); streamAbort = null; }
+}
+
+// ── Session management ────────────────────────────────────────────────────────
+async function launchSession() {
+  if (isLoading) return;
+  setLoading(true); setStatus('busy', 'starting…'); hideErr();
+  try {
+    const { session_id } = await api('/api/browser-control/sessions', { method: 'POST' });
+    sessionId = session_id;
+    sessionIdLabel.textContent = session_id.slice(0, 18) + '…';
+    sessionInfo.style.display = '';
+    emptyState.style.display = 'none';
+    canvas.style.display = 'block';
+    document.getElementById('btn-back').disabled = false;
+    document.getElementById('btn-forward').disabled = false;
+    document.getElementById('btn-reload').disabled = false;
+    document.getElementById('btn-close').disabled = false;
+    startStream(session_id);
+    const target = toFullUrl(urlInput.value);
+    setStatus('busy', 'navigating…');
+    const d = await api('/api/browser-control/navigate', {
+      method: 'POST',
+      body: JSON.stringify({ session_id, url: target })
+    });
+    applyPageState(d);
+  } catch(e) {
+    showErr(e.message); setStatus('error', 'failed');
+  } finally {
+    setLoading(false); if (sessionId) setStatus('ready', 'ready');
+  }
+}
+
+async function closeSession() {
+  stopStream();
+  if (sessionId) {
+    try { await api(`/api/browser-control/sessions/${sessionId}`, { method: 'DELETE' }); } catch {}
+  }
+  sessionId = '';
+  elements = [];
+  canvas.style.display = 'none';
+  emptyState.style.display = '';
+  sessionInfo.style.display = 'none';
+  pageStrip.classList.remove('show');
+  document.getElementById('btn-back').disabled = true;
+  document.getElementById('btn-forward').disabled = true;
+  document.getElementById('btn-reload').disabled = true;
+  document.getElementById('btn-close').disabled = true;
+  urlInput.value = 'https://google.com';
+  currentUrl = 'https://google.com';
+  renderSidebar();
+  setStatus('idle', 'session closed'); fpsLabel.textContent = '— fps';
+}
+
+// ── Navigation ────────────────────────────────────────────────────────────────
+function toFullUrl(v) {
+  const s = v.trim();
+  return /^https?:\/\//i.test(s) ? s : 'https://' + s;
+}
+
+function applyPageState(d) {
+  if (d.url) { currentUrl = d.url; urlInput.value = d.url; }
+  if (d.elements) elements = d.elements;
+  pageTitle.textContent = d.title || '';
+  pageUrl.textContent = d.url || '';
+  pageStrip.classList.toggle('show', !!(d.title || d.url));
+  document.getElementById('lock-icon').textContent = (d.url || '').startsWith('https://') ? '🔒' : '🔓';
+  renderSidebar();
+}
+
+async function navigate(url) {
+  if (!sessionId) { launchSession(); return; }
+  const target = toFullUrl(url || urlInput.value);
+  setLoading(true); setStatus('busy', 'navigating…'); hideErr();
+  canvas.focus();
+  try {
+    const d = await api('/api/browser-control/navigate', {
+      method: 'POST',
+      body: JSON.stringify({ session_id: sessionId, url: target })
+    });
+    applyPageState(d);
+  } catch(e) { showErr(e.message); }
+  finally { setLoading(false); setStatus('ready', 'ready'); }
+}
+
+async function goBack() {
+  if (!sessionId || isLoading) return;
+  setLoading(true); setStatus('busy', 'back…');
+  try { applyPageState(await api(`/api/browser-control/sessions/${sessionId}/go-back`, { method: 'POST' })); }
+  catch(e) { showErr(e.message); }
+  finally { setLoading(false); setStatus('ready', 'ready'); }
+}
+
+async function goForward() {
+  if (!sessionId || isLoading) return;
+  setLoading(true); setStatus('busy', 'forward…');
+  try { applyPageState(await api(`/api/browser-control/sessions/${sessionId}/go-forward`, { method: 'POST' })); }
+  catch(e) { showErr(e.message); }
+  finally { setLoading(false); setStatus('ready', 'ready'); }
+}
+
+async function reload() {
+  if (!sessionId) return;
+  if (isLoading) { stopNav(); return; }
+  setLoading(true); setStatus('busy', 'reloading…');
+  try { applyPageState(await api(`/api/browser-control/sessions/${sessionId}/reload`, { method: 'POST' })); }
+  catch(e) { showErr(e.message); }
+  finally { setLoading(false); setStatus('ready', 'ready'); }
+}
+
+async function stopNav() {
+  if (sessionId) await api('/api/browser-control/keyboard/press', {
+    method: 'POST', body: JSON.stringify({ session_id: sessionId, key: 'Escape' })
+  }).catch(() => {});
+}
+
+// ── Mouse & keyboard on canvas ────────────────────────────────────────────────
+function canvasCoords(e) {
+  const rect = canvas.getBoundingClientRect();
+  return {
+    x: Math.round((e.clientX - rect.left) * (VPORT_W / rect.width)),
+    y: Math.round((e.clientY - rect.top)  * (VPORT_H / rect.height))
+  };
+}
+
+canvas.addEventListener('click', e => {
+  if (!sessionId) return;
+  const { x, y } = canvasCoords(e);
+  api('/api/browser-control/mouse/click', { method: 'POST', body: JSON.stringify({ session_id: sessionId, x, y, button: 'left' }) }).catch(() => {});
+  canvas.focus();
+});
+
+canvas.addEventListener('contextmenu', e => {
+  e.preventDefault();
+  if (!sessionId) return;
+  const { x, y } = canvasCoords(e);
+  api('/api/browser-control/mouse/click', { method: 'POST', body: JSON.stringify({ session_id: sessionId, x, y, button: 'right' }) }).catch(() => {});
+});
+
+canvas.addEventListener('wheel', e => {
+  e.preventDefault();
+  if (!sessionId) return;
+  api('/api/browser-control/mouse/scroll', { method: 'POST', body: JSON.stringify({ session_id: sessionId, x: 0, y: 0, delta_x: Math.round(e.deltaX), delta_y: Math.round(e.deltaY) }) }).catch(() => {});
+}, { passive: false });
+
+canvas.addEventListener('mousemove', e => {
+  if (!sessionId) return;
+  if (moveTimer) clearTimeout(moveTimer);
+  moveTimer = setTimeout(() => {
+    const { x, y } = canvasCoords(e);
+    api('/api/browser-control/mouse/move', { method: 'POST', body: JSON.stringify({ session_id: sessionId, x, y, button: 'left' }) }).catch(() => {});
+  }, 16);
+});
+
+canvas.addEventListener('focus', () => {
+  canvasFocused = true;
+  canvas.classList.add('focused');
+  focusHint.style.display = 'none';
+});
+canvas.addEventListener('blur', () => {
+  canvasFocused = false;
+  canvas.classList.remove('focused');
+  if (sessionId) focusHint.style.display = '';
+});
+
+const SPECIAL_KEYS = {
+  Enter:'Enter', Backspace:'Backspace', Delete:'Delete', Escape:'Escape',
+  Tab:'Tab', ArrowUp:'ArrowUp', ArrowDown:'ArrowDown',
+  ArrowLeft:'ArrowLeft', ArrowRight:'ArrowRight',
+  Home:'Home', End:'End', PageUp:'PageUp', PageDown:'PageDown',
+  F5:'F5', F12:'F12', ' ':'Space'
+};
+
+canvas.addEventListener('keydown', e => {
+  if (!sessionId) return;
+  // Ctrl+L → address bar
+  if (e.ctrlKey && e.key === 'l') { e.preventDefault(); urlInput.focus(); urlInput.select(); return; }
+  // Ctrl+R → reload
+  if (e.ctrlKey && e.key === 'r') { e.preventDefault(); reload(); return; }
+  // Alt+Left/Right → history
+  if (e.altKey && e.key === 'ArrowLeft') { e.preventDefault(); goBack(); return; }
+  if (e.altKey && e.key === 'ArrowRight') { e.preventDefault(); goForward(); return; }
+  e.preventDefault();
+  const k = SPECIAL_KEYS[e.key];
+  if (k) {
+    api('/api/browser-control/keyboard/press', { method: 'POST', body: JSON.stringify({ session_id: sessionId, key: k }) }).catch(() => {});
+  } else if (e.key.length === 1 && !e.ctrlKey && !e.metaKey && !e.altKey) {
+    api('/api/browser-control/keyboard/type', { method: 'POST', body: JSON.stringify({ session_id: sessionId, text: e.key }) }).catch(() => {});
+  } else if (e.ctrlKey && e.key.length === 1) {
+    api('/api/browser-control/keyboard/press', { method: 'POST', body: JSON.stringify({ session_id: sessionId, key: 'Control+' + e.key.toUpperCase() }) }).catch(() => {});
+  }
+});
+
+// ── Sidebar ───────────────────────────────────────────────────────────────────
+function renderSidebar() {
+  const links   = elements.filter(e => e.tag === 'a' && e.href);
+  const inputs  = elements.filter(e => ['input','textarea','select'].includes(e.tag));
+  const btns    = elements.filter(e => e.tag === 'button' || e.role === 'button');
+
+  document.getElementById('badge-el').textContent = elements.length;
+  document.getElementById('badge-lk').textContent = links.length;
+  document.getElementById('badge-in').textContent = inputs.length;
+  document.getElementById('badge-bt').textContent = btns.length;
+
+  let rows = [];
+  if (activeTab === 'el') rows = elements.slice(0, 150);
+  else if (activeTab === 'lk') rows = links;
+  else if (activeTab === 'in') rows = inputs;
+  else if (activeTab === 'bt') rows = btns;
+
+  if (!rows.length) {
+    const labels = { el: 'elements', lk: 'links', in: 'inputs', bt: 'buttons' };
+    sidebarList.innerHTML = `<div class="sempty">Navigate to see ${labels[activeTab]}</div>`;
+    return;
+  }
+
+  sidebarList.innerHTML = rows.map(el => {
+    const tag = el.tag || '?';
+    const label = el.name || el.value || el.placeholder || el.href || '';
+    const dimmed = el.disabled ? ' dim' : '';
+    const disabledAttr = el.disabled ? ' disabled' : '';
+    if (activeTab === 'lk') {
+      return `<div class="srow">
+        <span class="slabel${dimmed}" title="${esc(el.href || '')}">${esc(label || el.href || '—')}</span>
+        <button class="sact" onclick="navTo(${esc(JSON.stringify(el.href || ''))})" ${disabledAttr}>Go</button>
+      </div>`;
+    }
+    return `<div class="srow">
+      <span class="stag">${esc(tag)}</span>
+      <span class="slabel${dimmed}" title="${esc(label)}">${esc(label || '—')}</span>
+      <button class="sact" onclick="clickEl(${el.x||0},${el.y||0},${el.w||20},${el.h||20})" ${disabledAttr}>↖</button>
+    </div>`;
+  }).join('');
+}
+
+function esc(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+async function clickEl(x, y, w, h) {
+  if (!sessionId) return;
+  const cx = x + Math.round(w / 2), cy = y + Math.round(h / 2);
+  await api('/api/browser-control/mouse/click', { method: 'POST', body: JSON.stringify({ session_id: sessionId, x: cx, y: cy, button: 'left' }) }).catch(() => {});
+  canvas.focus();
+}
+
+async function navTo(href) {
+  await navigate(href);
+}
+
+// ── Toolbar buttons ───────────────────────────────────────────────────────────
+document.getElementById('btn-back').onclick    = goBack;
+document.getElementById('btn-forward').onclick = goForward;
+document.getElementById('btn-reload').onclick  = reload;
+document.getElementById('btn-close').onclick   = closeSession;
+document.getElementById('launch-btn').onclick  = launchSession;
+document.getElementById('empty-launch-btn').onclick = launchSession;
+
+document.getElementById('url-form').onsubmit = e => {
+  e.preventDefault();
+  navigate(urlInput.value);
+};
+
+urlInput.addEventListener('focus', e => e.target.select());
+
+document.getElementById('sidebar-toggle').onclick = () => {
+  sidebarOpen = !sidebarOpen;
+  document.getElementById('sidebar').classList.toggle('hidden', !sidebarOpen);
+  document.getElementById('sidebar-toggle').textContent = sidebarOpen ? '⊟' : '⊞';
+};
+
+// Sidebar tab switching
+document.querySelectorAll('.stab').forEach(btn => {
+  btn.onclick = () => {
+    document.querySelectorAll('.stab').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    activeTab = btn.dataset.tab;
+    renderSidebar();
+  };
+});
+
+// ── Init ──────────────────────────────────────────────────────────────────────
+canvas.style.display = 'none';  // hidden until session starts
+focusHint.style.display = 'none';
+
+// Auto-skip auth check on load (try health endpoint silently)
+(async () => {
+  try {
+    await fetch(API + '/api/health');
+    // If health responds without auth, we're in dev mode — skip overlay
+    document.getElementById('auth-overlay').classList.add('hidden');
+    authBadge.textContent = '🔓 dev mode';
+    authBadge.classList.add('ok');
+    document.getElementById('empty-launch-btn').disabled = false;
+    document.getElementById('launch-btn').disabled = false;
+    setStatus('idle', 'ready');
+  } catch {
+    // leave overlay open
+  }
+})();
+</script>
+</body>
+</html>

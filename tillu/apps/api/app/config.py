@@ -50,9 +50,9 @@ class Settings(BaseSettings):
     google_model: str = "gemini-3.1-flash-lite"
     openrouter_model: str = "openrouter/free"
     cloudflare_model: str = "@cf/qwen/qwen3-30b-a3b-fp8"
-    cors_origins: str = "http://localhost:5173"
+    cors_origins: str = "*"
     public_app_url: str = "http://localhost:5173"
-    rate_limit_per_minute: int = 120
+    rate_limit_per_minute: int = 600
     log_level: str = "INFO"
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 

@@ -10,11 +10,8 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
         response=await call_next(request)
         response.headers['x-request-id']=request_id
         response.headers['x-content-type-options']='nosniff'
-        response.headers['x-frame-options']='DENY'
         response.headers['referrer-policy']='strict-origin-when-cross-origin'
-        response.headers['permissions-policy']='camera=(), geolocation=(), payment=()'
         response.headers['cache-control']='no-store' if request.url.path.startswith('/api/') else 'public, max-age=300'
-        response.headers['strict-transport-security']='max-age=31536000; includeSubDomains'
         return response
 
 class RateLimitMiddleware(BaseHTTPMiddleware):
@@ -29,11 +26,17 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
         bucket.append(now);return await call_next(request)
 
 class ServiceRoleBoundaryMiddleware(BaseHTTPMiddleware):
-    """Runtime is internal-only except for health and protected internal/cron routes."""
+    """Runtime is internal-only except for health, protected internal/cron routes, and the browser explorer UI."""
     def __init__(self,app,role='brain'):super().__init__(app);self.role=role
+    _UI_PATHS={'/','runtime-ui','/runtime-ui'}
     async def dispatch(self,request:Request,call_next):
         path=request.url.path
-        if self.role=='runtime' and not (path.startswith('/api/health') or path.startswith('/api/internal/')):
+        if self.role=='runtime' and not (
+            path.startswith('/api/health') or
+            path.startswith('/api/internal/') or
+            path.startswith('/api/browser-control/') or
+            path in self._UI_PATHS
+        ):
             return JSONResponse(status_code=404,content={'detail':'Not found'})
         return await call_next(request)
 

@@ -328,7 +328,19 @@ app.add_middleware(SecurityHeadersMiddleware)
 app.add_middleware(ServiceRoleBoundaryMiddleware,role=settings.service_role)
 app.add_middleware(MaximumBodyMiddleware)
 app.add_middleware(RateLimitMiddleware, requests_per_minute=settings.rate_limit_per_minute)
-app.add_middleware(CORSMiddleware, allow_origins=[x.strip() for x in settings.cors_origins.split(",")], allow_credentials=True, allow_methods=["*"], allow_headers=["*"])
+_cors_origins=[x.strip() for x in settings.cors_origins.split(",")]
+_wildcard=_cors_origins==['*'] or '*' in _cors_origins
+app.add_middleware(CORSMiddleware, allow_origins=_cors_origins, allow_credentials=not _wildcard, allow_methods=["*"], allow_headers=["*"])
+
+_UI_FILE = Path(__file__).parent / "runtime_ui.html"
+
+@app.get("/", include_in_schema=False)
+@app.get("/runtime-ui", include_in_schema=False)
+async def runtime_ui():
+    """Standalone browser explorer UI — only meaningful when SERVICE_ROLE=runtime."""
+    if not _UI_FILE.exists():
+        raise HTTPException(404, "Runtime UI not found")
+    return FileResponse(_UI_FILE, media_type="text/html")
 
 @app.get("/api/health")
 def health(): return {"status":"ok","service":settings.service_name,"role":settings.service_role,"version":"0.8.0","build":settings.build_sha,"uptime_seconds":round(time.time()-STARTED_AT)}
@@ -1289,6 +1301,30 @@ class BrowserMouse(BaseModel):session_id:str;x:int;y:int;button:str='left'
 class BrowserScroll(BaseModel):session_id:str;x:int=0;y:int=0;delta_x:int=0;delta_y:int=0
 class BrowserKey(BaseModel):session_id:str;key:str
 class BrowserTypeText(BaseModel):session_id:str;text:str
+
+@app.post('/api/browser-control/sessions/{session_id}/go-back')
+async def browser_go_back(session_id:str,user:User=Depends(current_user)):
+    try:return await (runtime_rpc('browser_go_back',{'session_id':session_id},user.id) if settings.service_role=='brain' and settings.runtime_internal_url else browser_runtime.go_back(session_id,user.id))
+    except KeyError as exc:raise HTTPException(404,str(exc))
+    except Exception as exc:raise HTTPException(400,str(exc))
+
+@app.post('/api/browser-control/sessions/{session_id}/go-forward')
+async def browser_go_forward(session_id:str,user:User=Depends(current_user)):
+    try:return await (runtime_rpc('browser_go_forward',{'session_id':session_id},user.id) if settings.service_role=='brain' and settings.runtime_internal_url else browser_runtime.go_forward(session_id,user.id))
+    except KeyError as exc:raise HTTPException(404,str(exc))
+    except Exception as exc:raise HTTPException(400,str(exc))
+
+@app.post('/api/browser-control/sessions/{session_id}/reload')
+async def browser_reload(session_id:str,user:User=Depends(current_user)):
+    try:return await (runtime_rpc('browser_reload',{'session_id':session_id},user.id) if settings.service_role=='brain' and settings.runtime_internal_url else browser_runtime.reload(session_id,user.id))
+    except KeyError as exc:raise HTTPException(404,str(exc))
+    except Exception as exc:raise HTTPException(400,str(exc))
+
+@app.post('/api/browser-control/mouse/move')
+async def browser_mouse_move(body:BrowserMouse,user:User=Depends(current_user)):
+    try:await (runtime_rpc('browser_mouse_move',body.model_dump(),user.id) if settings.service_role=='brain' and settings.runtime_internal_url else browser_runtime.mouse_move(body.session_id,user.id,body.x,body.y));return{'ok':True}
+    except KeyError as exc:raise HTTPException(404,str(exc))
+    except Exception as exc:raise HTTPException(400,str(exc))
 
 @app.post('/api/browser-control/mouse/click')
 async def browser_mouse_click(body:BrowserMouse,user:User=Depends(current_user)):

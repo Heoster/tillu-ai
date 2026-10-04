@@ -72,17 +72,20 @@ function Metric({value,label}){return <article><b>{value}</b><small>{label}</sma
 function BrowserWorkspace({embedded}){
   const VPORT_W=1280,VPORT_H=800
   const[url,setUrl]=useState('https://google.com')
+  const[inputUrl,setInputUrl]=useState('https://google.com')
   const[session,setSession]=useState('')
   const[status,setStatus]=useState('idle')
   const[err,setErr]=useState('')
   const[tab,setTab]=useState('el')
   const[elements,setElements]=useState([])
   const[pageInfo,setPageInfo]=useState(null)
-  const[typeText,setTypeText]=useState('')
   const[focused,setFocused]=useState(false)
   const[busy,setBusy]=useState(false)
+  const[sidebarOpen,setSidebarOpen]=useState(true)
   const canvasRef=useRef(null)
+  const urlInputRef=useRef(null)
   const streamAbort=useRef(null)
+  const moveTimer=useRef(null)
 
   async function startStream(sid){
     if(streamAbort.current)streamAbort.current.abort()
@@ -91,7 +94,7 @@ function BrowserWorkspace({embedded}){
     try{
       const {authHeaders}=await import('./cloud')
       const hdrs=await authHeaders()
-      const res=await fetch(`${API}/browser-control/sessions/${sid}/stream?fps=12`,{headers:hdrs,signal:ctrl.signal})
+      const res=await fetch(`${API}/browser-control/sessions/${sid}/stream?fps=15`,{headers:hdrs,signal:ctrl.signal})
       if(!res.ok)return
       const reader=res.body.getReader()
       let buf=new Uint8Array(0)
@@ -126,43 +129,74 @@ function BrowserWorkspace({embedded}){
           } else i++
         }
       }
-    }catch(e){if(e.name!=='AbortError')setErr('Stream lost — reload page to reconnect')}
+    }catch(e){if(e.name!=='AbortError')setErr('Stream lost — click reload to reconnect')}
   }
 
   function stopStream(){if(streamAbort.current){streamAbort.current.abort();streamAbort.current=null}}
-  useEffect(()=>()=>stopStream(),[])
+  useEffect(()=>()=>{stopStream();if(moveTimer.current)clearTimeout(moveTimer.current)},[])
 
   async function launchSession(){
     setBusy(true);setErr('');setStatus('starting')
+    const target=/^https?:\/\//.test(inputUrl)?inputUrl:'https://'+inputUrl
     const r=await apiFetch(API+'/browser-control/sessions',{method:'POST'})
     const d=await r.json()
-    if(r.ok){setSession(d.session_id);setStatus('ready');startStream(d.session_id)}
-    else{setErr(d.detail||'Failed to start browser');setStatus('idle')}
+    if(r.ok){
+      setSession(d.session_id);setStatus('navigating')
+      startStream(d.session_id)
+      const nav=await apiFetch(API+'/browser-control/navigate',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({session_id:d.session_id,url:target})})
+      const nd=await nav.json()
+      if(nav.ok){setPageInfo(nd);setUrl(nd.url);setInputUrl(nd.url);setElements(nd.elements||[])}
+      setStatus('ready')
+    } else {setErr(d.detail||'Failed to start browser');setStatus('idle')}
     setBusy(false)
   }
 
   async function navigate(e){
     if(e)e.preventDefault()
-    if(!session)return
-    const target=/^https?:\/\//.test(url)?url:'https://'+url
+    if(!session){launchSession();return}
+    const target=/^https?:\/\//.test(inputUrl)?inputUrl:'https://'+inputUrl
     setStatus('navigating');setErr('')
+    canvasRef.current?.focus()
     const r=await apiFetch(API+'/browser-control/navigate',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({session_id:session,url:target})})
     const d=await r.json()
-    if(r.ok){setPageInfo(d);setUrl(d.url);setElements(d.elements||[]);setStatus('ready')}
+    if(r.ok){setPageInfo(d);setUrl(d.url);setInputUrl(d.url);setElements(d.elements||[]);setStatus('ready')}
     else{setErr(d.detail||'Navigation failed');setStatus('ready')}
   }
 
-  async function refreshDOM(){
+  async function goBack(){
     if(!session)return
-    const r=await apiFetch(`${API}/browser-control/sessions/${session}`)
+    setStatus('navigating')
+    const r=await apiFetch(`${API}/browser-control/sessions/${session}/go-back`,{method:'POST'})
     const d=await r.json()
-    if(r.ok){setPageInfo(d);setElements(d.elements||[]);setUrl(d.url)}
+    if(r.ok){setPageInfo(d);setUrl(d.url);setInputUrl(d.url);setElements(d.elements||[])}
+    setStatus('ready')
   }
+
+  async function goForward(){
+    if(!session)return
+    setStatus('navigating')
+    const r=await apiFetch(`${API}/browser-control/sessions/${session}/go-forward`,{method:'POST'})
+    const d=await r.json()
+    if(r.ok){setPageInfo(d);setUrl(d.url);setInputUrl(d.url);setElements(d.elements||[])}
+    setStatus('ready')
+  }
+
+  async function reload(){
+    if(!session)return
+    setStatus('navigating')
+    const r=await apiFetch(`${API}/browser-control/sessions/${session}/reload`,{method:'POST'})
+    const d=await r.json()
+    if(r.ok){setPageInfo(d);setUrl(d.url);setInputUrl(d.url);setElements(d.elements||[])}
+    setStatus('ready')
+  }
+
+  async function stopNav(){if(session)apiFetch(API+'/browser-control/keyboard/press',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({session_id:session,key:'Escape'})})}
 
   async function closeSession(){
     stopStream()
     if(session)await apiFetch(`${API}/browser-control/sessions/${session}`,{method:'DELETE'})
     setSession('');setPageInfo(null);setElements([]);setStatus('idle');setErr('')
+    setUrl('https://google.com');setInputUrl('https://google.com')
   }
 
   function canvasCoords(e){
@@ -185,6 +219,15 @@ function BrowserWorkspace({embedded}){
     apiFetch(API+'/browser-control/mouse/click',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({session_id:session,x,y,button:'right'})})
   }
 
+  function handleMouseMove(e){
+    if(!session)return
+    if(moveTimer.current)clearTimeout(moveTimer.current)
+    moveTimer.current=setTimeout(()=>{
+      const{x,y}=canvasCoords(e)
+      apiFetch(API+'/browser-control/mouse/move',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({session_id:session,x,y,button:'left'})})
+    },16)
+  }
+
   function handleWheel(e){
     e.preventDefault()
     if(!session)return
@@ -195,6 +238,13 @@ function BrowserWorkspace({embedded}){
 
   function handleKeyDown(e){
     if(!session)return
+    // Ctrl+L → focus address bar
+    if(e.ctrlKey&&e.key==='l'){e.preventDefault();urlInputRef.current?.focus();urlInputRef.current?.select();return}
+    // Ctrl+R → reload
+    if(e.ctrlKey&&e.key==='r'){e.preventDefault();reload();return}
+    // Alt+Left → back, Alt+Right → forward
+    if(e.altKey&&e.key==='ArrowLeft'){e.preventDefault();goBack();return}
+    if(e.altKey&&e.key==='ArrowRight'){e.preventDefault();goForward();return}
     e.preventDefault()
     const k=KEYS[e.key]
     if(k){apiFetch(API+'/browser-control/keyboard/press',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({session_id:session,key:k})})}
@@ -202,97 +252,129 @@ function BrowserWorkspace({embedded}){
     else if(e.ctrlKey&&e.key.length===1){apiFetch(API+'/browser-control/keyboard/press',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({session_id:session,key:'Control+'+e.key.toUpperCase()})})}
   }
 
-  async function qKey(key){if(session)await apiFetch(API+'/browser-control/keyboard/press',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({session_id:session,key})})}
-  async function qScroll(d){if(session)await apiFetch(API+'/browser-control/mouse/scroll',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({session_id:session,x:0,y:0,delta_x:0,delta_y:d==='down'?400:-400})})}
-  async function sendType(){if(session&&typeText){await apiFetch(API+'/browser-control/keyboard/type',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({session_id:session,text:typeText})});setTypeText('')}}
-
   async function clickEl(el){
     apiFetch(API+'/browser-control/mouse/click',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({session_id:session,x:el.x+Math.round((el.w||20)/2),y:el.y+Math.round((el.h||20)/2),button:'left'})})
+    canvasRef.current?.focus()
   }
 
-  const statusColor=status==='ready'?'#4ed68b':status==='navigating'||status==='starting'?'#ffb84d':'#555'
+  async function navToLink(el){
+    setInputUrl(el.href)
+    const target=el.href
+    setStatus('navigating');setErr('')
+    const r=await apiFetch(API+'/browser-control/navigate',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({session_id:session,url:target})})
+    const d=await r.json()
+    if(r.ok){setPageInfo(d);setUrl(d.url);setInputUrl(d.url);setElements(d.elements||[]);setStatus('ready')}
+    else{setErr(d.detail||'Navigation failed');setStatus('ready')}
+  }
+
+  const isLoading=status==='navigating'||status==='starting'
+  const isHttps=url.startsWith('https://')
   const links=(elements||[]).filter(e=>e.tag==='a'&&e.href)
   const inputs=(elements||[]).filter(e=>['input','textarea','select'].includes(e.tag))
   const btns=(elements||[]).filter(e=>e.tag==='button'||e.role==='button')
+  const tabCounts={el:elements.length,lk:links.length,in:inputs.length,bt:btns.length}
 
-  return <div style={{height:'calc(100vh - 78px)',display:'flex',flexDirection:'column',overflow:'hidden',background:'var(--bg)'}}>
-    <div style={{padding:'8px 14px',borderBottom:'1px solid var(--line)',flexShrink:0}}>
-      <form onSubmit={navigate} style={{display:'flex',gap:7,alignItems:'center',marginBottom:session?6:0}}>
-        <Globe2 size={14} style={{opacity:.4,flexShrink:0}}/>
-        <input value={url} onChange={e=>setUrl(e.target.value)} style={{flex:1,background:'#15131c',border:'1px solid #302b38',borderRadius:7,padding:'6px 11px',color:'var(--text)',fontSize:13,outline:'none'}} placeholder="https://…"/>
+  return <div className="browserChrome">
+    {/* Toolbar */}
+    <div className="browserBar">
+      <div className="browserNav">
+        <button className="browserNavBtn" onClick={goBack} disabled={!session||isLoading} title="Back (Alt+←)">
+          <ChevronRight size={14} style={{transform:'rotate(180deg)'}}/>
+        </button>
+        <button className="browserNavBtn" onClick={goForward} disabled={!session||isLoading} title="Forward (Alt+→)">
+          <ChevronRight size={14}/>
+        </button>
+        {isLoading
+          ?<button className="browserNavBtn" onClick={stopNav} title="Stop">✕</button>
+          :<button className="browserNavBtn" onClick={session?reload:undefined} disabled={!session} title="Reload (Ctrl+R)">↺</button>
+        }
+      </div>
+      <form onSubmit={navigate} className="browserUrlForm">
+        <span className="browserLock" title={isHttps?'Secure':'Not secure'}>{isHttps?'🔒':'🔓'}</span>
+        <input
+          ref={urlInputRef}
+          value={inputUrl}
+          onChange={e=>setInputUrl(e.target.value)}
+          onFocus={e=>e.target.select()}
+          className="browserUrlInput"
+          placeholder="Search or enter address"
+          spellCheck={false}
+          autoComplete="off"
+        />
+        {isLoading&&<div className="browserProgress"/>}
+      </form>
+      <div className="browserActions">
         {!session
-          ?<button type="button" onClick={launchSession} disabled={busy} style={{padding:'6px 16px',whiteSpace:'nowrap'}}>{busy?'Starting…':'🚀 Launch'}</button>
+          ?<button onClick={launchSession} disabled={busy} className="browserLaunchBtn">{busy?'Starting…':'Launch'}</button>
           :<>
-            <button disabled={status==='navigating'} style={{padding:'6px 14px'}}>{status==='navigating'?'…':'Go'}</button>
-            <button type="button" onClick={refreshDOM} title="Refresh DOM" style={{padding:'6px 9px',background:'#15131c',border:'1px solid #302b38'}}>⟳</button>
-            <button type="button" onClick={closeSession} style={{padding:'6px 9px',background:'transparent',border:'1px solid #5a2020',color:'#ff6b6b'}}>✕</button>
+            <button onClick={()=>setSidebarOpen(o=>!o)} className="browserNavBtn" title="Toggle panel" style={{fontSize:12}}>{sidebarOpen?'⊟':'⊞'}</button>
+            <button onClick={closeSession} className="browserNavBtn browserCloseBtn" title="Close session">✕</button>
           </>
         }
-        {session&&<span style={{fontSize:11,opacity:.5,display:'flex',alignItems:'center',gap:5,whiteSpace:'nowrap'}}><span style={{width:7,height:7,borderRadius:'50%',background:statusColor,display:'inline-block'}}/>{status}</span>}
-      </form>
-      {session&&<div style={{display:'flex',gap:5,alignItems:'center',flexWrap:'wrap'}}>
-        <button onClick={()=>qKey('Alt+ArrowLeft')} style={{fontSize:11,padding:'3px 8px'}}>← Back</button>
-        <button onClick={()=>qKey('Alt+ArrowRight')} style={{fontSize:11,padding:'3px 8px'}}>Forward →</button>
-        <button onClick={()=>qKey('F5')} style={{fontSize:11,padding:'3px 8px'}}>↺</button>
-        <button onClick={()=>qScroll('up')} style={{fontSize:11,padding:'3px 8px'}}>▲</button>
-        <button onClick={()=>qScroll('down')} style={{fontSize:11,padding:'3px 8px'}}>▼</button>
-        <button onClick={()=>qKey('Escape')} style={{fontSize:11,padding:'3px 8px'}}>Esc</button>
-        <button onClick={()=>qKey('Tab')} style={{fontSize:11,padding:'3px 8px'}}>Tab</button>
-        <button onClick={()=>qKey('Enter')} style={{fontSize:11,padding:'3px 8px'}}>↵</button>
-        <span style={{width:1,height:14,background:'var(--line)',flexShrink:0,margin:'0 2px'}}/>
-        <input value={typeText} onChange={e=>setTypeText(e.target.value)} onKeyDown={e=>{if(e.key==='Enter'){e.preventDefault();sendType()}}} placeholder="Type and Enter to send…" style={{flex:1,minWidth:140,background:'#15131c',border:'1px solid #302b38',borderRadius:6,padding:'4px 9px',color:'var(--text)',fontSize:12,outline:'none'}}/>
-        <button onClick={sendType} disabled={!typeText} style={{fontSize:11,padding:'3px 9px'}}>Send</button>
-      </div>}
-      {err&&<div style={{color:'#ff6b6b',fontSize:12,marginTop:5}}>{err}<button onClick={()=>setErr('')} style={{background:'none',border:'none',color:'#ff6b6b',cursor:'pointer',marginLeft:6}}>✕</button></div>}
+      </div>
     </div>
 
-    {!session&&<div style={{flex:1,display:'flex',alignItems:'center',justifyContent:'center',flexDirection:'column',gap:14,opacity:.6}}>
-      <Globe2 size={52}/>
-      <h2 style={{margin:0}}>Live Browser Control</h2>
-      <p style={{margin:0,fontSize:14,textAlign:'center',maxWidth:400}}>Launch a Playwright session. See the page live — click, scroll, type directly. No screenshots.</p>
-      <button onClick={launchSession} disabled={busy} style={{padding:'10px 28px',fontSize:15}}>{busy?'Starting…':'🚀 Launch browser'}</button>
+    {err&&<div className="browserErrBar">{err}<button onClick={()=>setErr('')}>✕</button></div>}
+
+    {/* Page title bar when active */}
+    {session&&pageInfo&&<div className="browserTitleBar">
+      <Globe2 size={10} style={{opacity:.4,flexShrink:0}}/>
+      <span className="browserTitle">{pageInfo.title||url}</span>
+      <span className="browserUrl">{url}</span>
     </div>}
 
-    {session&&<div style={{flex:1,display:'flex',overflow:'hidden'}}>
-      <div style={{flex:1,overflow:'hidden',background:'#000',display:'flex',alignItems:'center',justifyContent:'center',position:'relative'}}>
+    {/* Main area */}
+    {!session&&<div className="browserEmpty">
+      <Globe2 size={52} style={{opacity:.25}}/>
+      <h2>Live Browser</h2>
+      <p>Enter an address above and click Launch — you'll get a real browser session you can click, scroll, and type in directly.</p>
+      <button onClick={launchSession} disabled={busy} className="browserLaunchBig">{busy?'Starting…':'🚀 Launch browser'}</button>
+    </div>}
+
+    {session&&<div className="browserViewport">
+      {/* Canvas */}
+      <div className="browserCanvas" style={{flex:1}}>
         <canvas ref={canvasRef} width={VPORT_W} height={VPORT_H} tabIndex={0}
-          onClick={handleClick} onContextMenu={handleRightClick} onWheel={handleWheel}
+          onClick={handleClick} onContextMenu={handleRightClick}
+          onWheel={handleWheel} onMouseMove={handleMouseMove}
           onKeyDown={handleKeyDown} onFocus={()=>setFocused(true)} onBlur={()=>setFocused(false)}
-          style={{maxWidth:'100%',maxHeight:'100%',cursor:'crosshair',outline:focused?'2px solid #6b48b8':'none',display:'block'}}/>
-        {status==='navigating'&&<div style={{position:'absolute',top:10,left:'50%',transform:'translateX(-50%)',background:'rgba(0,0,0,.75)',color:'#ffb84d',padding:'5px 16px',borderRadius:20,fontSize:13}}>Loading…</div>}
-        {!focused&&<div style={{position:'absolute',bottom:8,left:'50%',transform:'translateX(-50%)',background:'rgba(0,0,0,.55)',color:'#fff',padding:'3px 12px',borderRadius:20,fontSize:10,pointerEvents:'none',opacity:.65}}>Click to focus keyboard</div>}
+          className={'browserScreen'+(focused?' browserScreenFocused':'')}
+        />
+        {isLoading&&<div className="browserLoadingBadge">Loading…</div>}
+        {!focused&&!isLoading&&<div className="browserFocusHint">Click canvas · type directly · Ctrl+L for address bar</div>}
       </div>
 
-      <div style={{width:200,borderLeft:'1px solid var(--line)',display:'flex',flexDirection:'column',background:'#0d0b14',flexShrink:0}}>
-        <div style={{display:'flex',borderBottom:'1px solid var(--line)',flexShrink:0}}>
-          {[['el','All'],['lk','Links'],['in','Inputs'],['bt','Btns']].map(([id,label])=>
-            <button key={id} onClick={()=>setTab(id)} style={{flex:1,padding:'7px 2px',background:'none',border:'none',borderBottom:tab===id?'2px solid var(--accent)':'2px solid transparent',cursor:'pointer',fontSize:10,color:'var(--text)',opacity:tab===id?1:.4}}>{label}</button>
+      {/* Sidebar */}
+      {sidebarOpen&&<div className="browserSidebar">
+        <div className="browserSidebarTabs">
+          {[['el','All',elements.length],['lk','Links',links.length],['in','Inputs',inputs.length],['bt','Btns',btns.length]].map(([id,label,count])=>
+            <button key={id} onClick={()=>setTab(id)} className={'browserSideTab'+(tab===id?' active':'')}>
+              {label}{count>0&&<span className="browserTabBadge">{count}</span>}
+            </button>
           )}
         </div>
-        <div style={{flex:1,overflow:'auto'}}>
-          {tab==='el'&&(elements||[]).slice(0,100).map(el=><div key={el.ref} style={{padding:'5px 8px',borderBottom:'1px solid var(--line)',fontSize:11,display:'flex',alignItems:'center',gap:5}}>
-            <code style={{fontSize:9,opacity:.35,flexShrink:0,width:28}}>{el.tag}</code>
-            <span style={{flex:1,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap',opacity:el.disabled?.4:1}}>{el.name||el.value||<em style={{opacity:.35}}>—</em>}</span>
-            <button disabled={el.disabled} onClick={()=>clickEl(el)} style={{fontSize:9,padding:'1px 6px',flexShrink:0}}>↖</button>
+        <div className="browserSideList">
+          {tab==='el'&&(elements||[]).slice(0,120).map(el=><div key={el.ref} className="browserSideRow">
+            <code className="browserSideTag">{el.tag}</code>
+            <span className="browserSideLabel" style={{opacity:el.disabled?.4:1}}>{el.name||el.value||<em style={{opacity:.3}}>—</em>}</span>
+            <button disabled={el.disabled} onClick={()=>clickEl(el)} className="browserSideAct" title="Click element">↖</button>
           </div>)}
-          {tab==='lk'&&links.map(el=><div key={el.ref} style={{padding:'5px 8px',borderBottom:'1px solid var(--line)',fontSize:11,display:'flex',alignItems:'center',gap:5}}>
-            <span style={{flex:1,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{el.name||el.href}</span>
-            <button onClick={()=>setUrl(el.href)} style={{fontSize:9,padding:'1px 6px',flexShrink:0}}>Go</button>
-            <button onClick={()=>clickEl(el)} style={{fontSize:9,padding:'1px 6px',flexShrink:0}}>↖</button>
+          {tab==='lk'&&links.map(el=><div key={el.ref} className="browserSideRow">
+            <span className="browserSideLabel">{el.name||el.href}</span>
+            <button onClick={()=>navToLink(el)} className="browserSideAct" title="Navigate to link">Go</button>
           </div>)}
-          {tab==='in'&&inputs.map(el=><div key={el.ref} style={{padding:'5px 8px',borderBottom:'1px solid var(--line)',fontSize:11,display:'flex',alignItems:'center',gap:5}}>
-            <code style={{fontSize:9,opacity:.35,flexShrink:0}}>{el.type||el.tag}</code>
-            <span style={{flex:1,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{el.name||<em style={{opacity:.35}}>—</em>}</span>
-            <button onClick={()=>clickEl(el)} style={{fontSize:9,padding:'1px 6px',flexShrink:0}}>Focus</button>
+          {tab==='in'&&inputs.map(el=><div key={el.ref} className="browserSideRow">
+            <code className="browserSideTag">{el.type||el.tag}</code>
+            <span className="browserSideLabel">{el.name||el.placeholder||<em style={{opacity:.3}}>—</em>}</span>
+            <button onClick={()=>clickEl(el)} className="browserSideAct" title="Focus input">Focus</button>
           </div>)}
-          {tab==='bt'&&btns.map(el=><div key={el.ref} style={{padding:'5px 8px',borderBottom:'1px solid var(--line)',fontSize:11,display:'flex',alignItems:'center',gap:5}}>
-            <span style={{flex:1,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap',opacity:el.disabled?.4:1}}>{el.name||<em style={{opacity:.35}}>—</em>}</span>
-            <button disabled={el.disabled} onClick={()=>clickEl(el)} style={{fontSize:9,padding:'1px 6px',flexShrink:0}}>↖</button>
+          {tab==='bt'&&btns.map(el=><div key={el.ref} className="browserSideRow">
+            <span className="browserSideLabel" style={{opacity:el.disabled?.4:1}}>{el.name||<em style={{opacity:.3}}>—</em>}</span>
+            <button disabled={el.disabled} onClick={()=>clickEl(el)} className="browserSideAct" title="Click button">↖</button>
           </div>)}
-          {((tab==='el'&&elements.length===0)||(tab==='lk'&&links.length===0)||(tab==='in'&&inputs.length===0)||(tab==='bt'&&btns.length===0))&&<div style={{padding:16,textAlign:'center',opacity:.3,fontSize:11}}>Navigate first</div>}
+          {tabCounts[tab]===0&&<div className="browserSideEmpty">Navigate to see {tab==='el'?'elements':tab==='lk'?'links':tab==='in'?'inputs':'buttons'}</div>}
         </div>
-        {pageInfo&&<div style={{padding:'7px 8px',borderTop:'1px solid var(--line)',fontSize:10,opacity:.35,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{pageInfo.title}</div>}
-      </div>
+      </div>}
     </div>}
   </div>
 }

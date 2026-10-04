@@ -141,6 +141,29 @@ class BrowserRuntime:
         await p.mouse.click(x, y, button=button)
         await p.wait_for_timeout(200)
 
+    async def go_back(self, sid, user_id):
+        p = self.get(sid, user_id)['page']
+        try:
+            await p.go_back(wait_until='domcontentloaded', timeout=15000)
+        except Exception:
+            pass
+        await p.wait_for_timeout(300)
+        return await self.state(sid, user_id)
+
+    async def go_forward(self, sid, user_id):
+        p = self.get(sid, user_id)['page']
+        try:
+            await p.go_forward(wait_until='domcontentloaded', timeout=15000)
+        except Exception:
+            pass
+        await p.wait_for_timeout(300)
+        return await self.state(sid, user_id)
+
+    async def reload(self, sid, user_id):
+        p = self.get(sid, user_id)['page']
+        await p.reload(wait_until='domcontentloaded', timeout=30000)
+        return await self.state(sid, user_id)
+
     async def mouse_move(self, sid, user_id, x: int, y: int):
         p = self.get(sid, user_id)['page']
         await p.mouse.move(x, y)
