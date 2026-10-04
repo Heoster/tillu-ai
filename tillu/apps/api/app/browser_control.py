@@ -43,13 +43,6 @@ class BrowserRuntime:
                 viewport={'width': VIEWPORT_W, 'height': VIEWPORT_H},
                 accept_downloads=False
             )
-            async def guard(route):
-                try:
-                    validate_public_endpoint(route.request.url)
-                    await route.continue_()
-                except Exception:
-                    await route.abort('blockedbyclient')
-            await ctx.route('**/*', guard)
             page = await ctx.new_page()
             self.sessions[sid] = {'user_id': user_id, 'context': ctx, 'page': page}
             return sid
