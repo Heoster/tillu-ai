@@ -380,6 +380,63 @@ async def health_dependencies(user:User=Depends(current_user)):
 @app.get("/api/providers")
 def providers(): return {"providers":gateway.status(),"routing":"phase capability + predicted RPM/TPM headroom + relative cost + latency EWMA + 429 cooldown + exponential circuit breaker","phases":["intent","planning","execution"]}
 
+# ── Runtime browser UI ────────────────────────────────────────────────────────
+# Served only on the runtime service role; protected by a short-lived token
+# so the page can call /api/browser-control/* without embedding a user password.
+import secrets as _secrets
+_UI_TOKENS: dict[str, float] = {}  # token → expiry epoch
+
+def _issue_ui_token() -> str:
+    tok = _secrets.token_urlsafe(32)
+    _UI_TOKENS[tok] = time.time() + 3600  # 1-hour expiry
+    # Prune expired tokens to avoid unbounded growth
+    expired = [k for k, v in _UI_TOKENS.items() if v < time.time()]
+    for k in expired: del _UI_TOKENS[k]
+    return tok
+
+def _verify_ui_token(token: str) -> bool:
+    expiry = _UI_TOKENS.get(token)
+    return bool(expiry and expiry > time.time())
+
+def _current_user_or_ui_token(
+    authorization: str | None = Header(default=None),
+    _t: str | None = None,  # query param injected by the UI
+    request: Request = None,
+) -> User:
+    """Auth dependency that accepts either a Supabase JWT or a short-lived UI token."""
+    # UI token path — only valid on the runtime service role
+    if _t and settings.service_role == 'runtime' and _verify_ui_token(_t):
+        return User(settings.owner_user_id or 'runtime-ui', settings.owner_email or None)
+    return current_user(authorization)
+
+@app.get('/browser-ui', include_in_schema=False)
+async def browser_ui(user: User = Depends(current_user)):
+    """Serve the browser control panel HTML (runtime role only)."""
+    if settings.service_role != 'runtime':
+        raise HTTPException(403, 'Browser UI is only available on the runtime service')
+    ui_path = Path(__file__).resolve().parent / 'runtime_ui.html'
+    if not ui_path.exists():
+        raise HTTPException(404, 'runtime_ui.html not found')
+    token = _issue_ui_token()
+    html = ui_path.read_text(encoding='utf-8')
+    # Inject the token so the page's JS can authenticate API calls via ?_t=
+    html = html.replace(
+        "typeof window.__RT_TOKEN__ !== 'undefined'",
+        'true',
+    ).replace(
+        'window.__RT_TOKEN__',
+        f"'{token}'",
+    )
+    return Response(content=html, media_type='text/html',
+                    headers={'Cache-Control': 'no-store, no-cache'})
+
+@app.get('/api/browser-ui/token', include_in_schema=False)
+def browser_ui_token(user: User = Depends(current_user)):
+    """Issue a fresh short-lived UI token (for token refresh without full page reload)."""
+    if settings.service_role != 'runtime':
+        raise HTTPException(403, 'Runtime role only')
+    return {'token': _issue_ui_token(), 'expires_in': 3600}
+
 @app.get('/api/models/library')
 async def models_library(refresh:bool=False,user:User=Depends(current_user)):
     return await build_library(refresh)
@@ -1247,30 +1304,30 @@ async def integration_status(user:User=Depends(current_user)):
     return {'integrations':[{'id':'browser','name':'Controlled browser','configured':browser_ready,'capabilities':['read','navigate','screenshot','approved click/type']},{'id':'gmail','name':'Gmail','configured':bool(settings.google_client_id and settings.google_client_secret and settings.gmail_refresh_token),'capabilities':['search','read','approved draft/send']},{'id':'whatsapp','name':'WhatsApp Cloud API','configured':whatsapp.configured,'capabilities':['approved messages','webhook-ready']}]}
 
 @app.post('/api/browser-control/sessions')
-async def browser_session_start(user:User=Depends(current_user)):
+async def browser_session_start(user:User=Depends(_current_user_or_ui_token)):
     try:return await runtime_rpc('browser_start',{},user.id) if settings.service_role=='brain' and settings.runtime_internal_url else {'session_id':await browser_runtime.start(user.id)}
     except Exception as exc:raise HTTPException(503,f'Browser runtime unavailable: {type(exc).__name__}')
 @app.post('/api/browser-control/navigate')
-async def browser_navigate(body:BrowserNavigate,user:User=Depends(current_user)):
+async def browser_navigate(body:BrowserNavigate,user:User=Depends(_current_user_or_ui_token)):
     try:return await runtime_rpc('browser_navigate',body.model_dump(),user.id) if settings.service_role=='brain' and settings.runtime_internal_url else await browser_runtime.navigate(body.session_id,user.id,body.url)
     except KeyError as exc:raise HTTPException(404,str(exc))
     except Exception as exc:raise HTTPException(400,str(exc))
 @app.get('/api/browser-control/sessions/{session_id}')
-async def browser_state(session_id:str,user:User=Depends(current_user)):
+async def browser_state(session_id:str,user:User=Depends(_current_user_or_ui_token)):
     try:return await runtime_rpc('browser_state',{'session_id':session_id},user.id) if settings.service_role=='brain' and settings.runtime_internal_url else await browser_runtime.state(session_id,user.id)
     except KeyError as exc:raise HTTPException(404,str(exc))
 @app.delete('/api/browser-control/sessions/{session_id}')
-async def browser_session_close(session_id:str,user:User=Depends(current_user)):
+async def browser_session_close(session_id:str,user:User=Depends(_current_user_or_ui_token)):
     try:
         if settings.service_role=='brain' and settings.runtime_internal_url:return await runtime_rpc('browser_close',{'session_id':session_id},user.id)
         await browser_runtime.close(session_id,user.id);return {'closed':True}
     except KeyError as exc:raise HTTPException(404,str(exc))
 @app.post('/api/browser-control/sessions/{session_id}/screenshot')
-async def browser_screenshot(session_id:str,user:User=Depends(current_user)):
+async def browser_screenshot(session_id:str,user:User=Depends(_current_user_or_ui_token)):
     try:return await runtime_rpc('browser_screenshot',{'session_id':session_id},user.id) if settings.service_role=='brain' and settings.runtime_internal_url else {'artifact':await browser_runtime.screenshot(session_id,user.id)}
     except KeyError as exc:raise HTTPException(404,str(exc))
 @app.get('/api/browser-control/artifacts/{name}')
-async def browser_artifact(name:str,user:User=Depends(current_user)):
+async def browser_artifact(name:str,user:User=Depends(_current_user_or_ui_token)):
     if settings.service_role=='brain' and settings.runtime_internal_url:
         import base64
         try:data=await runtime_rpc('browser_artifact',{'name':name},user.id);return Response(base64.b64decode(data['content']),media_type=data.get('media_type','application/octet-stream'))
@@ -1282,12 +1339,12 @@ async def browser_artifact(name:str,user:User=Depends(current_user)):
     if not any(k==sid and v['user_id']==user.id for k,v in browser_runtime.sessions.items()):raise HTTPException(404,'Artifact not found')
     return FileResponse(path,media_type='image/png')
 @app.post('/api/browser-control/actions')
-def browser_action_propose(body:BrowserAction,user:User=Depends(current_user)):
+def browser_action_propose(body:BrowserAction,user:User=Depends(_current_user_or_ui_token)):
     if not (settings.service_role=='brain' and settings.runtime_internal_url):browser_runtime.get(body.session_id,user.id)
     pid=str(uuid4());row={'id':pid,'user_id':user.id,'kind':'browser_action','payload':body.model_dump(exclude_none=True),'status':'pending','created_at':now(),'expires_at':datetime.fromtimestamp(datetime.now(timezone.utc).timestamp()+600,timezone.utc).isoformat()};create_action_proposal(row);return {'proposal':row,'approval_required':True}
 
 @app.post('/api/browser-control/actions/direct')
-async def browser_action_direct(body:BrowserAction,user:User=Depends(current_user)):
+async def browser_action_direct(body:BrowserAction,user:User=Depends(_current_user_or_ui_token)):
     """Execute a browser action immediately without approval gate. Owner-only direct control."""
     try:
         result=await runtime_rpc('browser_action',{**body.model_dump(exclude_none=True),'user_id':user.id},user.id) if settings.service_role=='brain' and settings.runtime_internal_url else await browser_runtime.action(body.session_id,user.id,body.action,body.model_dump())
@@ -1296,7 +1353,7 @@ async def browser_action_direct(body:BrowserAction,user:User=Depends(current_use
     except Exception as exc:raise HTTPException(400,str(exc))
 
 @app.post('/api/browser-control/scroll-page')
-async def browser_scroll_page(body:BrowserNavigate,user:User=Depends(current_user)):
+async def browser_scroll_page(body:BrowserNavigate,user:User=Depends(_current_user_or_ui_token)):
     """Scroll the page up or down. Pass url field as 'up' or 'down'."""
     try:
         direction=body.url
@@ -1316,55 +1373,55 @@ class BrowserKey(BaseModel):session_id:str;key:str
 class BrowserTypeText(BaseModel):session_id:str;text:str
 
 @app.post('/api/browser-control/sessions/{session_id}/go-back')
-async def browser_go_back(session_id:str,user:User=Depends(current_user)):
+async def browser_go_back(session_id:str,user:User=Depends(_current_user_or_ui_token)):
     try:return await (runtime_rpc('browser_go_back',{'session_id':session_id},user.id) if settings.service_role=='brain' and settings.runtime_internal_url else browser_runtime.go_back(session_id,user.id))
     except KeyError as exc:raise HTTPException(404,str(exc))
     except Exception as exc:raise HTTPException(400,str(exc))
 
 @app.post('/api/browser-control/sessions/{session_id}/go-forward')
-async def browser_go_forward(session_id:str,user:User=Depends(current_user)):
+async def browser_go_forward(session_id:str,user:User=Depends(_current_user_or_ui_token)):
     try:return await (runtime_rpc('browser_go_forward',{'session_id':session_id},user.id) if settings.service_role=='brain' and settings.runtime_internal_url else browser_runtime.go_forward(session_id,user.id))
     except KeyError as exc:raise HTTPException(404,str(exc))
     except Exception as exc:raise HTTPException(400,str(exc))
 
 @app.post('/api/browser-control/sessions/{session_id}/reload')
-async def browser_reload(session_id:str,user:User=Depends(current_user)):
+async def browser_reload(session_id:str,user:User=Depends(_current_user_or_ui_token)):
     try:return await (runtime_rpc('browser_reload',{'session_id':session_id},user.id) if settings.service_role=='brain' and settings.runtime_internal_url else browser_runtime.reload(session_id,user.id))
     except KeyError as exc:raise HTTPException(404,str(exc))
     except Exception as exc:raise HTTPException(400,str(exc))
 
 @app.post('/api/browser-control/mouse/move')
-async def browser_mouse_move(body:BrowserMouse,user:User=Depends(current_user)):
+async def browser_mouse_move(body:BrowserMouse,user:User=Depends(_current_user_or_ui_token)):
     try:await (runtime_rpc('browser_mouse_move',body.model_dump(),user.id) if settings.service_role=='brain' and settings.runtime_internal_url else browser_runtime.mouse_move(body.session_id,user.id,body.x,body.y));return{'ok':True}
     except KeyError as exc:raise HTTPException(404,str(exc))
     except Exception as exc:raise HTTPException(400,str(exc))
 
 @app.post('/api/browser-control/mouse/click')
-async def browser_mouse_click(body:BrowserMouse,user:User=Depends(current_user)):
+async def browser_mouse_click(body:BrowserMouse,user:User=Depends(_current_user_or_ui_token)):
     try:await (runtime_rpc('browser_mouse_click',body.model_dump(),user.id) if settings.service_role=='brain' and settings.runtime_internal_url else browser_runtime.mouse_click(body.session_id,user.id,body.x,body.y,body.button));return{'ok':True}
     except KeyError as exc:raise HTTPException(404,str(exc))
     except Exception as exc:raise HTTPException(400,str(exc))
 
 @app.post('/api/browser-control/mouse/scroll')
-async def browser_mouse_scroll(body:BrowserScroll,user:User=Depends(current_user)):
+async def browser_mouse_scroll(body:BrowserScroll,user:User=Depends(_current_user_or_ui_token)):
     try:await (runtime_rpc('browser_mouse_scroll',body.model_dump(),user.id) if settings.service_role=='brain' and settings.runtime_internal_url else browser_runtime.mouse_scroll(body.session_id,user.id,body.x,body.y,body.delta_x,body.delta_y));return{'ok':True}
     except KeyError as exc:raise HTTPException(404,str(exc))
     except Exception as exc:raise HTTPException(400,str(exc))
 
 @app.post('/api/browser-control/keyboard/press')
-async def browser_keyboard_press(body:BrowserKey,user:User=Depends(current_user)):
+async def browser_keyboard_press(body:BrowserKey,user:User=Depends(_current_user_or_ui_token)):
     try:await (runtime_rpc('browser_keyboard_press',body.model_dump(),user.id) if settings.service_role=='brain' and settings.runtime_internal_url else browser_runtime.keyboard_press(body.session_id,user.id,body.key));return{'ok':True}
     except KeyError as exc:raise HTTPException(404,str(exc))
     except Exception as exc:raise HTTPException(400,str(exc))
 
 @app.post('/api/browser-control/keyboard/type')
-async def browser_keyboard_type(body:BrowserTypeText,user:User=Depends(current_user)):
+async def browser_keyboard_type(body:BrowserTypeText,user:User=Depends(_current_user_or_ui_token)):
     try:await (runtime_rpc('browser_keyboard_type',body.model_dump(),user.id) if settings.service_role=='brain' and settings.runtime_internal_url else browser_runtime.keyboard_type(body.session_id,user.id,body.text));return{'ok':True}
     except KeyError as exc:raise HTTPException(404,str(exc))
     except Exception as exc:raise HTTPException(400,str(exc))
 
 @app.get('/api/browser-control/sessions/{session_id}/stream')
-async def browser_stream(session_id:str,fps:int=10,user:User=Depends(current_user)):
+async def browser_stream(session_id:str,fps:int=10,user:User=Depends(_current_user_or_ui_token)):
     from starlette.responses import StreamingResponse
     async def gen():
         async for frame in browser_runtime.stream_mjpeg(session_id,user.id,fps):
