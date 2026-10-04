@@ -18,7 +18,7 @@ export async function apiFetch(input, init = {}) {
   return fetch(input, { ...init, headers: { ...headers, ...(init.headers || {}) } });
 }
 
-export async function signInWithMagicLink(email) {
+export async function signInWithPassword(email, password) {
   if (!supabase) throw new Error('Supabase is not configured');
-  return supabase.auth.signInWithOtp({ email, options: { emailRedirectTo: location.origin } });
+  return supabase.auth.signInWithPassword({ email, password });
 }
