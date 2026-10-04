@@ -24,24 +24,9 @@
   #titlebar .status-dot.error{background:var(--danger)}
   #status-text{font-size:11px;color:var(--muted)}
   #titlebar .spacer{flex:1}
-  #auth-badge{font-size:10px;color:var(--muted);border:1px solid var(--line);border-radius:20px;padding:3px 9px}
-  #auth-badge.ok{color:var(--success);border-color:color-mix(in srgb,var(--success) 30%,transparent)}
+  #auth-badge{font-size:10px;color:var(--success);border:1px solid color-mix(in srgb,var(--success) 30%,transparent);border-radius:20px;padding:3px 9px}
 
   #main{flex:1;display:flex;overflow:hidden;min-height:0}
-
-  /* ── Auth overlay ── */
-  #auth-overlay{position:absolute;inset:0;background:rgba(13,11,20,.92);display:flex;align-items:center;justify-content:center;z-index:100;backdrop-filter:blur(4px)}
-  #auth-overlay.hidden{display:none}
-  .auth-card{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:32px;width:360px;display:flex;flex-direction:column;gap:16px}
-  .auth-card h2{font-size:18px;color:var(--accent2)}
-  .auth-card p{font-size:12px;color:var(--muted);line-height:1.6}
-  .auth-card input{background:var(--surface2);border:1px solid var(--line);border-radius:8px;padding:10px 12px;color:var(--text);font-size:12px;outline:none;width:100%}
-  .auth-card input:focus{border-color:var(--accent)}
-  .auth-card .btn-primary{border:0;background:var(--accent);color:#fff;border-radius:8px;padding:10px;font-size:13px;cursor:pointer;width:100%}
-  .auth-card .btn-primary:hover{background:var(--accent2)}
-  .auth-card .err{color:var(--danger);font-size:11px;display:none}
-  .auth-card .err.show{display:block}
-  .auth-card .skip{border:0;background:none;color:var(--muted);font-size:11px;cursor:pointer;text-decoration:underline}
 
   /* ── Toolbar (address bar) ── */
   #toolbar{height:46px;display:flex;align-items:center;gap:6px;padding:0 10px;background:var(--surface);border-bottom:1px solid var(--line);flex-shrink:0}
@@ -133,25 +118,13 @@
 <body>
 <div id="app">
 
-  <!-- Auth overlay -->
-  <div id="auth-overlay">
-    <div class="auth-card">
-      <h2>🔒 Runtime Access</h2>
-      <p>Enter your Supabase Bearer token to access the runtime browser explorer. In development mode (no Supabase configured) you can skip this.</p>
-      <input id="token-input" type="password" placeholder="eyJhbGciOiJIUzI1NiIs…" autocomplete="off"/>
-      <div class="err" id="auth-err">Invalid token or access denied.</div>
-      <button class="btn-primary" id="auth-submit">Connect</button>
-      <button class="skip" id="auth-skip">Skip (dev mode / no auth)</button>
-    </div>
-  </div>
-
   <!-- Title bar -->
   <div id="titlebar">
     <div class="logo">TILLU <span>runtime</span></div>
     <div class="status-dot" id="status-dot"></div>
     <span id="status-text">not connected</span>
     <div class="spacer"></div>
-    <div id="auth-badge">no auth</div>
+    <div id="auth-badge">🔐 signed in</div>
   </div>
 
   <!-- Toolbar -->
@@ -232,8 +205,10 @@
 
 // ── Config ────────────────────────────────────────────────────────────────────
 const VPORT_W = 1280, VPORT_H = 800;
-let API = '';          // relative — same origin
-let AUTH_TOKEN = '';   // Bearer token (empty = dev mode)
+const API = '';  // same origin
+
+// UI token injected by the server at page-serve time (window.__RT_TOKEN__)
+const UI_TOKEN = (typeof window.__RT_TOKEN__ !== 'undefined') ? window.__RT_TOKEN__ : '';
 
 // ── State ─────────────────────────────────────────────────────────────────────
 let sessionId = '';
@@ -269,55 +244,22 @@ const focusHint    = document.getElementById('focus-hint');
 const fpsLabel     = document.getElementById('fps-label');
 
 // ── API helpers ───────────────────────────────────────────────────────────────
-function apiHeaders(extra = {}) {
-  const h = { 'content-type': 'application/json', ...extra };
-  if (AUTH_TOKEN) h['authorization'] = 'Bearer ' + AUTH_TOKEN;
-  return h;
+function apiUrl(path) {
+  // Append the UI token as ?_t= so every request is authenticated
+  const sep = path.includes('?') ? '&' : '?';
+  return API + path + (UI_TOKEN ? sep + '_t=' + encodeURIComponent(UI_TOKEN) : '');
 }
 
 async function api(path, opts = {}) {
-  const res = await fetch(API + path, {
+  const res = await fetch(apiUrl(path), {
     ...opts,
-    headers: { ...apiHeaders(), ...(opts.headers || {}) }
+    headers: { 'content-type': 'application/json', ...(opts.headers || {}) }
   });
   if (!res.ok) {
     const d = await res.json().catch(() => ({}));
     throw new Error(d.detail || `HTTP ${res.status}`);
   }
   return res.json();
-}
-
-// ── Auth ──────────────────────────────────────────────────────────────────────
-document.getElementById('auth-submit').onclick = async () => {
-  const tok = document.getElementById('token-input').value.trim();
-  if (!tok) return;
-  AUTH_TOKEN = tok;
-  try {
-    await api('/api/health');
-    closeAuthOverlay();
-  } catch {
-    document.getElementById('auth-err').classList.add('show');
-    AUTH_TOKEN = '';
-  }
-};
-
-document.getElementById('auth-skip').onclick = async () => {
-  AUTH_TOKEN = '';
-  try { await api('/api/health'); } catch { /* will show error later */ }
-  closeAuthOverlay();
-};
-
-document.getElementById('token-input').onkeydown = e => {
-  if (e.key === 'Enter') document.getElementById('auth-submit').click();
-};
-
-function closeAuthOverlay() {
-  document.getElementById('auth-overlay').classList.add('hidden');
-  authBadge.textContent = AUTH_TOKEN ? '🔐 authenticated' : '🔓 dev mode';
-  authBadge.classList.toggle('ok', true);
-  document.getElementById('empty-launch-btn').disabled = false;
-  document.getElementById('launch-btn').disabled = false;
-  setStatus('idle', 'ready');
 }
 
 // ── Status ────────────────────────────────────────────────────────────────────
@@ -348,9 +290,8 @@ async function startStream(sid) {
   const ctrl = new AbortController();
   streamAbort = ctrl;
   const headers = {};
-  if (AUTH_TOKEN) headers['authorization'] = 'Bearer ' + AUTH_TOKEN;
   try {
-    const res = await fetch(`${API}/api/browser-control/sessions/${sid}/stream?fps=15`, {
+    const res = await fetch(apiUrl(`/apibrows/er-control/sessions/${sid}/stream?f)ps=15`, {
       headers, signal: ctrl.signal
     });
     if (!res.ok) return;
@@ -679,24 +620,21 @@ document.querySelectorAll('.stab').forEach(btn => {
 });
 
 // ── Init ──────────────────────────────────────────────────────────────────────
-canvas.style.display = 'none';  // hidden until session starts
+canvas.style.display = 'none';
 focusHint.style.display = 'none';
-
-// Auto-skip auth check on load (try health endpoint silently)
-(async () => {
+document.getElementById('empty-launch-btn').disabled = false;
+document.getElementById('launch-btn').disabled = false;
+setStatus('idle', 'ready');
+// Show token expiry warning 5 min before it expires (token is 1 hour)
+if (UI_TOKEN) {
   try {
-    await fetch(API + '/api/health');
-    // If health responds without auth, we're in dev mode — skip overlay
-    document.getElementById('auth-overlay').classList.add('hidden');
-    authBadge.textContent = '🔓 dev mode';
-    authBadge.classList.add('ok');
-    document.getElementById('empty-launch-btn').disabled = false;
-    document.getElementById('launch-btn').disabled = false;
-    setStatus('idle', 'ready');
-  } catch {
-    // leave overlay open
-  }
-})();
+    const parts = UI_TOKEN.split('.');
+    const payload = parts[0]; // "ui:exp:uid"
+    const exp = parseInt(payload.split(':')[1], 10);
+    const msLeft = (exp * 1000) - Date.now() - 5 * 60 * 1000;
+    if (msLeft > 0) setTimeout(() => showErr('Session expiring soon — refresh the page to continue'), msLeft);
+  } catch {}
+}
 </script>
 </body>
 </html>

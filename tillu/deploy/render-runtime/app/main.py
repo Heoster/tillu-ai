@@ -337,10 +337,17 @@ _UI_FILE = Path(__file__).parent / "runtime_ui.html"
 @app.get("/", include_in_schema=False)
 @app.get("/runtime-ui", include_in_schema=False)
 async def runtime_ui():
-    """Standalone browser explorer UI — only meaningful when SERVICE_ROLE=runtime."""
+    """Standalone browser explorer UI. Mints a short-lived HMAC token and injects
+    it into the page so the UI can call browser-control endpoints without a Bearer token."""
     if not _UI_FILE.exists():
         raise HTTPException(404, "Runtime UI not found")
-    return FileResponse(_UI_FILE, media_type="text/html")
+    from .auth import mint_ui_token
+    token = mint_ui_token()
+    html = _UI_FILE.read_text(encoding="utf-8")
+    # Inject the token as a JS constant right before </head>
+    injection = f'\n<script>window.__RT_TOKEN__={json.dumps(token)};</script>\n'
+    html = html.replace("</head>", injection + "</head>", 1)
+    return Response(content=html, media_type="text/html")
 
 @app.get("/api/health")
 def health(): return {"status":"ok","service":settings.service_name,"role":settings.service_role,"version":"0.8.0","build":settings.build_sha,"uptime_seconds":round(time.time()-STARTED_AT)}
