@@ -69,7 +69,234 @@ function SettingsPage({theme,setTheme}){const[prefs,setPrefs]=useState(null),[ac
 
 function PageTitle({eyebrow,title,copy,action}){return <div className="pageTitle"><div><small>{eyebrow}</small><h1>{title}</h1><p>{copy}</p></div>{action&&<button>{action}</button>}</div>}
 function Metric({value,label}){return <article><b>{value}</b><small>{label}</small></article>}
-function BrowserWorkspace(){const[url,setUrl]=useState('https://example.com'),[session,setSession]=useState(''),[page,setPage]=useState(null),[shot,setShot]=useState(''),[busy,setBusy]=useState(false),[error,setError]=useState(''),[selector,setSelector]=useState(''),[value,setValue]=useState(''),[proposal,setProposal]=useState(null);async function start(){setBusy(true);let r=await apiFetch(API+'/browser-control/sessions',{method:'POST'}),d=await r.json();if(r.ok)setSession(d.session_id);else setError(d.detail);setBusy(false)}async function open(e){e.preventDefault();if(!session){setError('Start an isolated browser session first.');return}let target=/^https?:\/\//.test(url)?url:'https://'+url;setBusy(true);let r=await apiFetch(API+'/browser-control/navigate',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({session_id:session,url:target})}),d=await r.json();if(r.ok){setPage(d);setUrl(d.url);setTimeout(capture,0)}else setError(d.detail);setBusy(false)}async function propose(action){let r=await apiFetch(API+'/browser-control/actions',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({session_id:session,action,selector,text:value,key:value||'Enter'})}),d=await r.json();if(r.ok)setProposal(d.proposal);else setError(d.detail)}async function decide(approved){let r=await apiFetch(`${API}/action-proposals/${proposal.id}/decision`,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({approved})}),d=await r.json();if(r.ok&&d.result)setPage(d.result);else if(!r.ok)setError(d.detail);setProposal(null);if(r.ok)capture()}async function capture(){if(!session)return;let r=await apiFetch(`${API}/browser-control/sessions/${session}/screenshot`,{method:'POST'}),d=await r.json();if(!r.ok){setError(d.detail);return}let image=await apiFetch(`${API}/browser-control/artifacts/${d.artifact}`),blob=await image.blob();setShot(old=>{if(old)URL.revokeObjectURL(old);return URL.createObjectURL(blob)})}async function closeBrowser(){if(session)await apiFetch(`${API}/browser-control/sessions/${session}`,{method:'DELETE'});if(shot)URL.revokeObjectURL(shot);setSession('');setPage(null);setShot('')}return <div className="browser"><div className="browserBar"><form onSubmit={open}><Globe2/><input value={url} onChange={e=>setUrl(e.target.value)} placeholder="URL"/><button type="button" onClick={start}>{session?'Session ready':'Start browser'}</button><button disabled={!session}>{busy?'Working…':'Navigate'}</button><button type="button" disabled={!session} onClick={capture}>Screenshot</button><button type="button" disabled={!session} onClick={closeBrowser}>Close</button></form></div><div className="browserBody controlBrowser"><aside><h3>CONTROL TOOLS</h3><input value={selector} onChange={e=>setSelector(e.target.value)} placeholder="CSS selector"/><input value={value} onChange={e=>setValue(e.target.value)} placeholder="Text to type"/><button disabled={!selector} onClick={()=>propose('click')}><Command/>Propose click</button><button disabled={!selector} onClick={()=>propose('type')}><Type/>Propose typing</button><button disabled={!selector} onClick={()=>propose('press')}><Command/>Propose key press</button><small>Page-changing actions require approval. Password and payment automation should not be used.</small></aside><main>{error&&<div className="error">{error}</div>}{proposal&&<div className="browserApproval"><ShieldCheck/><div><b>Approve browser action?</b><p>{proposal.payload.action} · {proposal.payload.selector}</p></div><button onClick={()=>decide(false)}>Reject</button><button onClick={()=>decide(true)}>Approve once</button></div>}{!page?<div className="browserEmpty"><Globe2/><h2>Controlled browser</h2><p>Launch an isolated browser that TILLU can read and navigate. Clicking and typing remain approval-gated.</p></div>:<article className="reader">{shot&&<img src={shot} alt="Live browser screenshot" style={{width:'100%',borderRadius:12,border:'1px solid var(--border)',marginBottom:16}}/>}<small>{page.url}</small><h1>{page.title}</h1><p>{page.text}</p></article>}</main></div></div>}
+function BrowserWorkspace({embedded}){
+  const[url,setUrl]=useState('https://example.com')
+  const[session,setSession]=useState('')
+  const[page,setPage]=useState(null)
+  const[shot,setShot]=useState('')
+  const[busy,setBusy]=useState(false)
+  const[error,setError]=useState('')
+  const[status,setStatus]=useState('idle')
+  const[selector,setSelector]=useState('')
+  const[typeText,setTypeText]=useState('')
+  const[pressKey,setPressKey]=useState('Enter')
+  const[proposal,setProposal]=useState(null)
+  const[activeTab,setActiveTab]=useState('screenshot')
+
+  async function startSession(){
+    setBusy(true);setError('');setStatus('starting')
+    const r=await apiFetch(API+'/browser-control/sessions',{method:'POST'})
+    const d=await r.json()
+    if(r.ok){setSession(d.session_id);setStatus('ready')}
+    else{setError(d.detail||'Failed to start browser');setStatus('idle')}
+    setBusy(false)
+  }
+
+  async function navigate(e){
+    e.preventDefault()
+    if(!session){setError('Start a browser session first');return}
+    const target=/^https?:\/\//.test(url)?url:'https://'+url
+    setBusy(true);setError('');setStatus('navigating')
+    const r=await apiFetch(API+'/browser-control/navigate',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({session_id:session,url:target})})
+    const d=await r.json()
+    if(r.ok){setPage(d);setUrl(d.url);setStatus('ready');await capture()}
+    else{setError(d.detail||'Navigation failed');setStatus('ready')}
+    setBusy(false)
+  }
+
+  async function capture(){
+    if(!session)return
+    const r=await apiFetch(`${API}/browser-control/sessions/${session}/screenshot`,{method:'POST'})
+    const d=await r.json()
+    if(!r.ok){return}
+    const img=await apiFetch(`${API}/browser-control/artifacts/${d.artifact}`)
+    const blob=await img.blob()
+    setShot(old=>{if(old)URL.revokeObjectURL(old);return URL.createObjectURL(blob)})
+    setActiveTab('screenshot')
+  }
+
+  async function refresh(){
+    if(!session)return
+    setBusy(true)
+    const r=await apiFetch(`${API}/browser-control/sessions/${session}`)
+    const d=await r.json()
+    if(r.ok){setPage(d);await capture()}
+    setBusy(false)
+  }
+
+  async function proposeAction(action){
+    if(!session){setError('No active session');return}
+    const body={session_id:session,action,selector,text:typeText,key:pressKey||'Enter'}
+    const r=await apiFetch(API+'/browser-control/actions',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(body)})
+    const d=await r.json()
+    if(r.ok)setProposal(d.proposal||d)
+    else setError(d.detail||'Action failed')
+  }
+
+  async function clickElement(ref){
+    if(!session)return
+    const body={session_id:session,action:'click',selector:'@'+ref,text:'',key:'Enter'}
+    const r=await apiFetch(API+'/browser-control/actions',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(body)})
+    const d=await r.json()
+    if(r.ok)setProposal(d.proposal||d)
+    else setError(d.detail||'Click failed')
+  }
+
+  async function decide(approved){
+    const r=await apiFetch(`${API}/action-proposals/${proposal.id}/decision`,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({approved})})
+    const d=await r.json()
+    setProposal(null)
+    if(r.ok&&d.result){setPage(d.result);await capture()}
+    else if(!r.ok)setError(d.detail||'Decision failed')
+  }
+
+  async function closeSession(){
+    if(session)await apiFetch(`${API}/browser-control/sessions/${session}`,{method:'DELETE'})
+    if(shot)URL.revokeObjectURL(shot)
+    setSession('');setPage(null);setShot('');setStatus('idle');setProposal(null)
+  }
+
+  const elements=page?.elements||[]
+  const links=elements.filter(e=>e.tag==='a'&&e.href)
+  const buttons=elements.filter(e=>e.tag==='button'||(e.role==='button'))
+  const inputs=elements.filter(e=>['input','textarea','select'].includes(e.tag))
+
+  return <div className="browser">
+    {/* Address bar */}
+    <div className="browserBar">
+      <form onSubmit={navigate} style={{display:'flex',gap:8,alignItems:'center',flex:1}}>
+        <Globe2 size={16} style={{flexShrink:0,opacity:0.5}}/>
+        <input value={url} onChange={e=>setUrl(e.target.value)} placeholder="Enter URL…" style={{flex:1}}/>
+        {!session
+          ? <button type="button" onClick={startSession} disabled={busy} style={{whiteSpace:'nowrap'}}>{busy?'Starting…':'Launch browser'}</button>
+          : <>
+              <button disabled={busy||!session} style={{whiteSpace:'nowrap'}}>{busy?'Loading…':'Go'}</button>
+              <button type="button" disabled={!session||busy} onClick={refresh} title="Refresh page state">↻</button>
+              <button type="button" disabled={!session} onClick={capture} title="Take screenshot"><Download size={14}/></button>
+              <button type="button" onClick={closeSession} style={{color:'var(--danger,#ff6b6b)'}} title="Close session"><X size={14}/></button>
+            </>
+        }
+      </form>
+      {session&&<div style={{display:'flex',alignItems:'center',gap:6,fontSize:11,opacity:0.6,marginTop:4}}>
+        <span style={{width:7,height:7,borderRadius:'50%',background:status==='ready'?'#4ed68b':status==='navigating'?'#ffb84d':'#888',display:'inline-block'}}/>
+        {status==='ready'?'Session active':status==='navigating'?'Navigating…':status==='starting'?'Launching…':'Idle'}
+        <span style={{marginLeft:4,opacity:0.5}}>{session.slice(0,8)}…</span>
+      </div>}
+    </div>
+
+    {/* Error banner */}
+    {error&&<div className="error" style={{margin:'8px 16px'}}>{error}<button onClick={()=>setError('')} style={{marginLeft:8,background:'none',border:'none',cursor:'pointer'}}>×</button></div>}
+
+    {/* Approval gate */}
+    {proposal&&<div className="browserApproval">
+      <ShieldCheck size={18}/>
+      <div><b>Approve browser action?</b><p style={{opacity:0.7,marginTop:4}}>{proposal.payload?.action} on <code>{proposal.payload?.selector}</code>{proposal.payload?.text?' → "'+proposal.payload.text+'"':''}</p></div>
+      <div style={{display:'flex',gap:8,marginLeft:'auto'}}>
+        <button onClick={()=>decide(false)} style={{background:'transparent',border:'1px solid var(--border)'}}>Reject</button>
+        <button onClick={()=>decide(true)}>Approve once</button>
+      </div>
+    </div>}
+
+    <div className="browserBody controlBrowser">
+      {/* Left panel: manual controls */}
+      <aside>
+        <h3>MANUAL CONTROLS</h3>
+
+        <section style={{marginBottom:16}}>
+          <small style={{opacity:0.5,display:'block',marginBottom:6}}>CSS SELECTOR</small>
+          <input value={selector} onChange={e=>setSelector(e.target.value)} placeholder="#id, .class, button[type=submit]" style={{width:'100%',marginBottom:6}}/>
+          <div style={{display:'flex',gap:6,flexWrap:'wrap'}}>
+            <button disabled={!selector||!session} onClick={()=>proposeAction('click')} title="Click element"><Command size={13}/> Click</button>
+            <button disabled={!selector||!session} onClick={()=>proposeAction('scroll')} title="Scroll to element">↕ Scroll</button>
+          </div>
+        </section>
+
+        <section style={{marginBottom:16}}>
+          <small style={{opacity:0.5,display:'block',marginBottom:6}}>TYPE TEXT</small>
+          <input value={typeText} onChange={e=>setTypeText(e.target.value)} placeholder="Text to type…" style={{width:'100%',marginBottom:6}}/>
+          <button disabled={!selector||!typeText||!session} onClick={()=>proposeAction('type')} style={{width:'100%'}}><Type size={13}/> Type into selector</button>
+        </section>
+
+        <section style={{marginBottom:16}}>
+          <small style={{opacity:0.5,display:'block',marginBottom:6}}>PRESS KEY</small>
+          <select value={pressKey} onChange={e=>setPressKey(e.target.value)} style={{width:'100%',marginBottom:6}}>
+            {['Enter','Tab','Escape','ArrowDown','ArrowUp','ArrowLeft','ArrowRight','Backspace','Delete','Space'].map(k=><option key={k}>{k}</option>)}
+          </select>
+          <button disabled={!selector||!session} onClick={()=>proposeAction('press')} style={{width:'100%'}}><Command size={13}/> Press key</button>
+        </section>
+
+        <small style={{opacity:0.4,fontSize:10,lineHeight:1.5,display:'block'}}>All click/type/press actions go through an approval gate before executing. Never use for passwords or payment fields.</small>
+      </aside>
+
+      {/* Main panel */}
+      <main style={{display:'flex',flexDirection:'column',overflow:'hidden'}}>
+        {!page&&!session&&<div className="browserEmpty"><Globe2 size={40}/><h2>Manual browser control</h2><p>Launch an isolated Playwright session. Navigate freely, click elements with approval, take screenshots, and inspect the DOM.</p><button onClick={startSession} disabled={busy}>{busy?'Starting…':'Launch browser'}</button></div>}
+
+        {!page&&session&&<div className="browserEmpty"><Globe2 size={40}/><h2>Session ready</h2><p>Enter a URL above and click Go to navigate.</p></div>}
+
+        {page&&<>
+          {/* Tabs */}
+          <div style={{display:'flex',gap:0,borderBottom:'1px solid var(--border)',flexShrink:0}}>
+            {[['screenshot','Screenshot'],['elements','Elements ('+elements.length+')'],['links','Links ('+links.length+')'],['inputs','Inputs ('+inputs.length+')'],['text','Page text']].map(([id,label])=>
+              <button key={id} onClick={()=>setActiveTab(id)} style={{padding:'8px 14px',background:'none',border:'none',borderBottom:activeTab===id?'2px solid var(--accent)':'2px solid transparent',cursor:'pointer',fontSize:12,opacity:activeTab===id?1:0.5}}>{label}</button>
+            )}
+          </div>
+
+          {/* Screenshot tab */}
+          {activeTab==='screenshot'&&<div style={{flex:1,overflow:'auto',padding:12}}>
+            {shot
+              ? <img src={shot} alt="Browser screenshot" style={{width:'100%',borderRadius:8,border:'1px solid var(--border)'}}/>
+              : <div style={{textAlign:'center',padding:40,opacity:0.4}}><Download size={32}/><p>Click ↓ to take a screenshot</p></div>}
+            <div style={{marginTop:8,display:'flex',gap:8,alignItems:'center'}}>
+              <Globe2 size={13} style={{opacity:0.5}}/>
+              <small style={{opacity:0.5,flex:1,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{page.url}</small>
+              <small style={{opacity:0.4}}>HTTP {page.status}</small>
+            </div>
+            <h3 style={{margin:'8px 0 4px'}}>{page.title}</h3>
+          </div>}
+
+          {/* Elements tab — clickable interactive elements */}
+          {activeTab==='elements'&&<div style={{flex:1,overflow:'auto',padding:8}}>
+            {buttons.concat(elements.filter(e=>!['a','button','input','textarea','select'].includes(e.tag))).slice(0,80).map(el=><div key={el.ref} style={{display:'flex',alignItems:'center',gap:8,padding:'6px 8px',borderBottom:'1px solid var(--border)',fontSize:12}}>
+              <code style={{fontSize:10,opacity:0.5,width:40,flexShrink:0}}>{el.tag}</code>
+              <span style={{flex:1,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{el.name||el.value||<em style={{opacity:0.4}}>unnamed</em>}</span>
+              {el.disabled&&<small style={{opacity:0.4}}>disabled</small>}
+              <button onClick={()=>{setSelector('@'+el.ref);clickElement(el.ref)}} disabled={el.disabled} style={{fontSize:11,padding:'2px 8px'}}>Click</button>
+              <button onClick={()=>setSelector('@'+el.ref)} style={{fontSize:11,padding:'2px 8px',background:'transparent',border:'1px solid var(--border)'}}>Select</button>
+            </div>)}
+            {elements.length===0&&<div style={{padding:24,textAlign:'center',opacity:0.4}}>No interactive elements found. Navigate to a page first.</div>}
+          </div>}
+
+          {/* Links tab */}
+          {activeTab==='links'&&<div style={{flex:1,overflow:'auto',padding:8}}>
+            {links.map(el=><div key={el.ref} style={{display:'flex',alignItems:'center',gap:8,padding:'6px 8px',borderBottom:'1px solid var(--border)',fontSize:12}}>
+              <Globe2 size={12} style={{opacity:0.4,flexShrink:0}}/>
+              <span style={{flex:1,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{el.name||el.href}</span>
+              <small style={{opacity:0.4,maxWidth:160,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{el.href}</small>
+              <button onClick={()=>{setUrl(el.href)}} style={{fontSize:11,padding:'2px 8px'}}>Go</button>
+            </div>)}
+            {links.length===0&&<div style={{padding:24,textAlign:'center',opacity:0.4}}>No links found on this page.</div>}
+          </div>}
+
+          {/* Inputs tab */}
+          {activeTab==='inputs'&&<div style={{flex:1,overflow:'auto',padding:8}}>
+            {inputs.map(el=><div key={el.ref} style={{display:'flex',alignItems:'center',gap:8,padding:'6px 8px',borderBottom:'1px solid var(--border)',fontSize:12}}>
+              <code style={{fontSize:10,opacity:0.5,width:60,flexShrink:0}}>{el.tag}{el.type?'.'+el.type:''}</code>
+              <span style={{flex:1}}>{el.name||el.value||<em style={{opacity:0.4}}>unnamed</em>}</span>
+              <button onClick={()=>setSelector('@'+el.ref)} style={{fontSize:11,padding:'2px 8px',background:'transparent',border:'1px solid var(--border)'}}>Select</button>
+            </div>)}
+            {inputs.length===0&&<div style={{padding:24,textAlign:'center',opacity:0.4}}>No input fields found on this page.</div>}
+          </div>}
+
+          {/* Text tab */}
+          {activeTab==='text'&&<div style={{flex:1,overflow:'auto',padding:16}}>
+            <pre style={{whiteSpace:'pre-wrap',fontSize:12,opacity:0.8,lineHeight:1.6}}>{page.text}</pre>
+          </div>}
+        </>}
+      </main>
+    </div>
+  </div>
+}
 function CalendarWorkspace(){const[events,setEvents]=useState([]),[title,setTitle]=useState(''),[start,setStart]=useState('');const load=()=>apiFetch(API+'/calendar').then(r=>r.json()).then(d=>setEvents(d.events||[]));useEffect(load,[]);async function add(e){e.preventDefault();if(!title||!start)return;await apiFetch(API+'/calendar',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({title,start_at:new Date(start).toISOString(),reminder_minutes:15})});setTitle('');setStart('');load()}async function remove(id){await apiFetch(`${API}/calendar/${id}`,{method:'DELETE'});load()}const groups=events.reduce((a,e)=>{let d=e.start_at.slice(0,10);(a[d]??=[]).push(e);return a},{});return <div className="calendar"><div className="libraryHead"><div><small>TIME INTELLIGENCE</small><h1>Your study calendar</h1><p>Schedule focused work and keep reminders synchronized across devices.</p></div></div><form className="eventAdd" onSubmit={add}><input value={title} onChange={e=>setTitle(e.target.value)} placeholder="What will you study?"/><input type="datetime-local" value={start} onChange={e=>setStart(e.target.value)}/><button>Schedule</button></form><div className="agenda">{Object.entries(groups).map(([day,list])=><section key={day}><div className="day"><b>{new Date(day+'T00:00:00').toLocaleDateString(undefined,{weekday:'short'})}</b><strong>{new Date(day+'T00:00:00').getDate()}</strong><small>{new Date(day+'T00:00:00').toLocaleDateString(undefined,{month:'short'})}</small></div><div>{list.map(e=><article key={e.id}><time>{new Date(e.start_at).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'})}</time><i/><span><b>{e.title}</b><small>{e.subject||'Study session'} · reminder {e.reminder_minutes} min before</small></span><button onClick={()=>remove(e.id)}>×</button></article>)}</div></section>)}{!events.length&&<div className="drop"><CalendarDays/><h3>No sessions scheduled</h3><p>Add your first study block above.</p></div>}</div></div>}
 function ResearchWorkspace(){const[sources,setSources]=useState([]),[url,setUrl]=useState(''),[question,setQuestion]=useState(''),[result,setResult]=useState(null),[busy,setBusy]=useState(false),[error,setError]=useState('');const load=()=>apiFetch(API+'/research/sources').then(r=>r.json()).then(d=>setSources(d.sources||[]));useEffect(load,[]);async function save(e){e.preventDefault();if(!url)return;setBusy(true);setError('');try{let r=await apiFetch(API+'/research/sources',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({url})});let d=await r.json();if(!r.ok)throw new Error(d.detail||'Could not save source');setUrl('');load()}catch(x){setError(x.message)}setBusy(false)}async function ask(e){e.preventDefault();if(!question)return;setBusy(true);let r=await apiFetch(API+'/research/web-query',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({question})});setResult(await r.json());setBusy(false)}return <div className="research"><div className="libraryHead"><div><small>EVIDENCE WORKSPACE</small><h1>Research you can verify</h1><p>Save readable web sources, ask across them, and trace every answer to evidence.</p></div></div><div className="researchGrid"><section><h3><Globe2/> Add a source</h3><form className="sourceForm" onSubmit={save}><input value={url} onChange={e=>setUrl(e.target.value)} placeholder="https://cbseacademic.nic.in/…"/><button disabled={busy}>Read & save</button></form>{error&&<div className="error">{error}</div>}<h3 className="savedTitle">Saved sources <span>{sources.length}</span></h3><div className="sources">{sources.map(s=><article key={s.id}><Globe2/><div><b>{s.title}</b><small>{s.url}</small><p>{s.excerpt}</p></div></article>)}{!sources.length&&<div className="noSources">Add a public webpage to create your evidence collection.</div>}</div></section><section className="askPanel"><h3><Sparkles/> Ask your collection</h3><form onSubmit={ask}><textarea value={question} onChange={e=>setQuestion(e.target.value)} placeholder="What do these sources say about…"/><button disabled={busy}><Send/> {busy?'Researching…':'Ask with citations'}</button></form>{result&&<div className="answer"><small>{result.provider}</small><p>{result.answer}</p>{result.sources?.map((s,i)=><blockquote key={i}><b>[{i+1}] {s.title}</b>{s.excerpt}</blockquote>)}</div>}</section></div></div>}
 function TaskBoard(){const[tasks,setTasks]=useState([]),[title,setTitle]=useState('');const load=()=>apiFetch(API+'/tasks').then(r=>r.json()).then(d=>setTasks(d.tasks||[]));useEffect(load,[]);async function add(e){e.preventDefault();if(!title.trim())return;await apiFetch(API+'/tasks',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({title,priority:2})});setTitle('');load()}async function move(id,status){await apiFetch(`${API}/tasks/${id}`,{method:'PATCH',headers:{'content-type':'application/json'},body:JSON.stringify({status})});load()}return <div className="tasks"><div className="libraryHead"><div><small>ACTION SYSTEM</small><h1>Plans that move</h1><p>Capture work, focus on what matters, and let TILLU track completion.</p></div></div><form className="taskAdd" onSubmit={add}><input value={title} onChange={e=>setTitle(e.target.value)} placeholder="Add a task, chapter or goal…"/><button>Add task</button></form><div className="kanban">{[['todo','To do'],['doing','In progress'],['done','Completed']].map(([status,label])=><section key={status}><header><b>{label}</b><span>{tasks.filter(t=>t.status===status).length}</span></header>{tasks.filter(t=>t.status===status).map(t=><article key={t.id}><i className={'p'+t.priority}/><b>{t.title}</b><small>{t.subject||'Personal'}{t.due_at?' · '+t.due_at:''}</small><div>{status!=='todo'&&<button onClick={()=>move(t.id,'todo')}>←</button>}{status!=='done'&&<button onClick={()=>move(t.id,status==='todo'?'doing':'done')}>→</button>}<button title="Delete task" onClick={async()=>{await apiFetch(`${API}/tasks/${t.id}`,{method:'DELETE'});load()}}>×</button></div></article>)}{!tasks.some(t=>t.status===status)&&<p className="noTasks">Nothing here</p>}</section>)}</div></div>}
