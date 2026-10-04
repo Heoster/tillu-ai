@@ -11,11 +11,8 @@ services:
     name: tillu-runtime
     runtime: docker
     plan: free
-    region: oregon             # pick the region closest to your brain service
-    # Paths are relative to the repo root when rootDir is NOT set, or relative
-    # to rootDir when it is. These paths assume Root Directory = deploy/render-runtime
-    # in the Render dashboard (or Blueprint rootDir). If you're pointing at the
-    # repo root with no rootDir, change these to ./deploy/render-runtime/Dockerfile etc.
+    region: oregon
+    rootDir: deploy/render-runtime   # all paths below are relative to this
     dockerfilePath: ./Dockerfile
     dockerContext: .
     healthCheckPath: /api/health/ready

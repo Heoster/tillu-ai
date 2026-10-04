@@ -3,6 +3,9 @@
 # We pin to a specific digest via the tag so Render layer-caches reliably.
 FROM mcr.microsoft.com/playwright/python:v1.55.0-noble
 
+# Build date label — bump this to force a full cache bust on Render
+LABEL build.date="2026-10-05" build.version="0.8.1"
+
 # ── Build-time env ────────────────────────────────────────────────────────────
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
