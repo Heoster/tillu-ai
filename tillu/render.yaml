@@ -61,8 +61,6 @@ services:
         value: medium
       - key: GROQ_API_KEY
         sync: false
-      - key: CEREBRAS_API_KEY
-        sync: false
       - key: GOOGLE_API_KEY
         sync: false
       - key: OPENROUTER_API_KEY

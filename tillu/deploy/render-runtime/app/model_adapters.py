@@ -35,7 +35,6 @@ class CloudflareAdapter:
 def build_model_adapters():
     return {
       'groq':OpenAICompatibleAdapter('groq','https://api.groq.com/openai/v1/chat/completions',settings.groq_api_key),
-      'cerebras':OpenAICompatibleAdapter('cerebras','https://api.cerebras.ai/v1/chat/completions',settings.cerebras_api_key),
       'openrouter':OpenAICompatibleAdapter('openrouter','https://openrouter.ai/api/v1/chat/completions',settings.openrouter_api_key,{'HTTP-Referer':settings.public_app_url,'X-Title':'TILLU'}),
       'google':GeminiAdapter(),
       'cloudflare':CloudflareAdapter(),

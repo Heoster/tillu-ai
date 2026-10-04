@@ -26,7 +26,6 @@ class ModelGateway:
                 if not model or model in seen:continue
                 seen.add(model);rows.append(Provider(provider,name,configured,capabilities,priority+offset,model,phases,cost+offset*.002,rpm,tpm))
         add('groq','Groq',bool(settings.groq_api_key),['chat','tools','fast','reasoning'],1,[settings.groq_model,'openai/gpt-oss-120b','llama-3.1-8b-instant','llama-3.3-70b-versatile','qwen/qwen3.8-27b'],['intent','planning','execution'],0.08,30,12000)
-        add('cerebras','Cerebras',bool(settings.cerebras_api_key),['chat','fast','reasoning'],2,[settings.cerebras_model,'qwen-3.8-27b'],['intent','planning','execution'],0.07,30,12000)
         add('cloudflare','Cloudflare Workers AI',bool(settings.cloudflare_api_token and settings.cloudflare_account_id),['chat','fast','edge'],3,[settings.cloudflare_model,'@cf/openai/gpt-oss-120b'],['intent','execution'],0.05,40,10000)
         add('google','Google Gemini',bool(settings.google_api_key),['chat','vision','long-context','tools','reasoning'],4,[settings.google_model,'gemini-2.5-flash','gemini-3-flash-preview'],['planning','execution'],0.18,15,250000)
         add('openrouter','OpenRouter',bool(settings.openrouter_api_key),['chat','fallback','model-variety','reasoning'],5,[settings.openrouter_model],['intent','planning','execution'],0.12,20,20000)

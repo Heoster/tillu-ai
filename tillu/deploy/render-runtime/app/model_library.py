@@ -13,7 +13,6 @@ from .config import settings
 
 SOURCES={
  'groq':'https://console.groq.com/docs/models',
- 'cerebras':'https://inference-docs.cerebras.ai/support/pricing',
  'openrouter':'https://openrouter.ai/docs/guides/routing/routers/free-router',
  'cloudflare':'https://developers.cloudflare.com/workers-ai/platform/pricing/',
  'google':'https://ai.google.dev/gemini-api/docs/models'
@@ -33,9 +32,7 @@ CURATED=[
  {'provider':'groq','id':'minimaxai/minimax-m2.7','name':'MiniMax M2.7','free_tier':False,'capabilities':['chat','reasoning'],'context':196608,'recommended_for':['planning','execution'],'stage':'preview'},
  {'provider':'groq','id':'openai/gpt-oss-safeguard-20b','name':'Safety GPT-OSS 20B','free_tier':True,'capabilities':['safety','reasoning'],'context':131072,'recommended_for':['guard'],'stage':'preview'},
  {'provider':'groq','id':'qwen/qwen3.8-27b','name':'Qwen 3.8 27B','free_tier':True,'capabilities':['chat','reasoning','structured-output'],'context':131072,'recommended_for':['planning','execution'],'stage':'preview'},
- # Cerebras Shared Inference currently documents both models for Free Trial and PAYG.
- {'provider':'cerebras','id':'gpt-oss-120b','name':'GPT-OSS 120B','free_tier':True,'capabilities':['chat','reasoning'],'context':65536,'recommended_for':['planning','execution'],'stage':'production'},
- {'provider':'cerebras','id':'qwen-3.8-27b','name':'Qwen 3.8 27B','free_tier':True,'capabilities':['chat','reasoning'],'context':64000,'recommended_for':['planning','execution'],'stage':'production'},
+ # Cerebras entries removed.
  {'provider':'openrouter','id':'openrouter/free','name':'Free Models Router','free_tier':True,'capabilities':['chat','dynamic-routing'],'context':None,'recommended_for':['intent','planning','execution'],'stage':'production'},
  {'provider':'cloudflare','id':'@cf/qwen/qwen3-30b-a3b-fp8','name':'Qwen 3 30B A3B','free_tier':True,'capabilities':['chat','reasoning','edge'],'context':None,'recommended_for':['intent','execution'],'stage':'production'},
  {'provider':'cloudflare','id':'@cf/openai/gpt-oss-120b','name':'GPT-OSS 120B','free_tier':True,'capabilities':['chat','reasoning','edge'],'context':None,'recommended_for':['planning','execution'],'stage':'production'},
@@ -45,7 +42,7 @@ CURATED=[
 ]
 
 def configured(provider:str)->bool:
- return {'groq':bool(settings.groq_api_key),'cerebras':bool(settings.cerebras_api_key),'openrouter':bool(settings.openrouter_api_key),'cloudflare':bool(settings.cloudflare_account_id and settings.cloudflare_api_token),'google':bool(settings.google_api_key)}[provider]
+ return {'groq':bool(settings.groq_api_key),'openrouter':bool(settings.openrouter_api_key),'cloudflare':bool(settings.cloudflare_account_id and settings.cloudflare_api_token),'google':bool(settings.google_api_key)}[provider]
 
 def _row(provider:str,raw:dict[str,Any]):
  mid=str(raw.get('id') or raw.get('name') or raw.get('model') or '')
@@ -54,7 +51,6 @@ def _row(provider:str,raw:dict[str,Any]):
 async def discover_provider(provider:str):
  headers={};url=''
  if provider=='groq':url='https://api.groq.com/openai/v1/models';headers={'Authorization':f'Bearer {settings.groq_api_key}'}
- elif provider=='cerebras':url='https://api.cerebras.ai/v1/models';headers={'Authorization':f'Bearer {settings.cerebras_api_key}'}
  elif provider=='openrouter':
   url='https://openrouter.ai/api/v1/models'
   if settings.openrouter_api_key:headers={'Authorization':f'Bearer {settings.openrouter_api_key}'}
@@ -78,7 +74,7 @@ async def discover_provider(provider:str):
  return out
 
 async def build_library(refresh:bool=False):
- providers=['groq','cerebras','openrouter','cloudflare','google'];live=[];errors={}
+ providers=['groq','openrouter','cloudflare','google'];live=[];errors={}
  if refresh:
   async def one(p):
    if not configured(p) and p!='openrouter':return p,[],None

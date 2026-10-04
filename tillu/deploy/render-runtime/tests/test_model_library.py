@@ -4,7 +4,7 @@ from app.providers import gateway
 
 
 def test_curated_library_has_free_default_for_every_provider():
-    providers={'groq','cerebras','openrouter','cloudflare','google'}
+    providers={'groq','openrouter','cloudflare','google'}
     assert {x['provider'] for x in CURATED}==providers
     rows=asyncio.run(build_library(False))['models']
     assert all(x['source'].startswith('https://') for x in rows)

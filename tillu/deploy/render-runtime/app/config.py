@@ -22,7 +22,6 @@ class Settings(BaseSettings):
     supabase_anon_key: str = ""
     supabase_service_role_key: str = ""
     groq_api_key: str = ""
-    cerebras_api_key: str = ""
     openrouter_api_key: str = ""
     google_api_key: str = ""
     google_client_id: str = ""
@@ -48,7 +47,6 @@ class Settings(BaseSettings):
     default_latitude: float = 29.97
     default_longitude: float = 77.55
     groq_model: str = "openai/gpt-oss-20b"
-    cerebras_model: str = "gpt-oss-120b"
     google_model: str = "gemini-3.1-flash-lite"
     openrouter_model: str = "openrouter/free"
     cloudflare_model: str = "@cf/qwen/qwen3-30b-a3b-fp8"

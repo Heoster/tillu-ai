@@ -1,0 +1,6 @@
+.brainLive{display:flex;flex-direction:column;gap:10px;padding:14px;border:1px solid var(--border);border-radius:14px;background:color-mix(in srgb,var(--panel) 92%,#765cff 8%)}
+.brainStep{display:flex;align-items:center;gap:10px;padding:9px;border-radius:10px;background:var(--surface)}
+.brainStep>i{display:grid;place-items:center;width:24px;height:24px;border-radius:50%;background:#765cff22;color:#9b87ff;font-style:normal;font-size:11px;font-weight:700}
+.brainStep span{display:flex;flex-direction:column;min-width:0}.brainStep b{text-transform:capitalize;font-size:13px}.brainStep small{color:var(--muted);font-size:11px}
+.brainLive>button,.brainThinking button{border:1px solid var(--border);background:transparent;color:var(--text);border-radius:9px;padding:7px 10px;cursor:pointer}
+.brainThinking>div{display:flex;align-items:center;gap:12px}.brainThinking p{margin:0}

@@ -1,0 +1,14 @@
+.env
+.env.*
+!.env.example
+.venv
+node_modules
+dist
+__pycache__
+*.pyc
+*.db
+apps/api/library/
+apps/api/browser-artifacts/
+.pytest_cache/
+.vite/
+.DS_Store

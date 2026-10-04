@@ -12,7 +12,7 @@ deploy/render-brain/
 │   ├── auth.py              # Supabase JWT auth
 │   ├── orchestrator.py      # LangGraph orchestration loop
 │   ├── planner.py           # Plan compiler
-│   ├── providers.py         # Multi-provider AI gateway (Groq, Cerebras, Google, OpenRouter, Cloudflare)
+│   ├── providers.py         # Multi-provider AI gateway (Groq, Google, OpenRouter, Cloudflare)
 │   ├── model_library.py     # Model catalogue and routing
 │   ├── honcho_adapter.py    # Honcho long-term memory integration
 │   ├── repository.py        # Storage abstraction (Supabase + SQLite fallback)
@@ -71,7 +71,7 @@ That means `skills/` must sit two levels above `app/` inside the image — i.e. 
 | `RPC_CAPABILITY_SECRET` | Protects inter-service RPC |
 | `BACKUP_ENCRYPTION_KEY` | At-rest backup encryption |
 | `HONCHO_API_KEY` | Honcho long-term memory key |
-| At least one of: `GROQ_API_KEY`, `CEREBRAS_API_KEY`, `GOOGLE_API_KEY`, `OPENROUTER_API_KEY`, `CLOUDFLARE_ACCOUNT_ID` + `CLOUDFLARE_API_TOKEN` | AI model provider |
+| At least one of: `GROQ_API_KEY`, `GOOGLE_API_KEY`, `OPENROUTER_API_KEY`, `CLOUDFLARE_ACCOUNT_ID` + `CLOUDFLARE_API_TOKEN` | AI model provider |
 
 See `env.brain.example` for the full annotated list.
 

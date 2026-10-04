@@ -1,0 +1,1 @@
+{"expo":{"name":"TILLU","slug":"tillu","scheme":"tillu","version":"0.1.0","orientation":"portrait","userInterfaceStyle":"dark","android":{"package":"ai.codeex.tillu","adaptiveIcon":{"backgroundColor":"#0a0910"}},"plugins":["expo-router","expo-secure-store","expo-sqlite"],"experiments":{"typedRoutes":true}}}

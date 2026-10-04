@@ -11,5 +11,5 @@ def test_builtin_skills_are_valid_and_capability_scoped():
     assert all(x['instructions'] and x['allowed_capabilities'] for x in parsed)
 
 def test_every_configured_ai_api_has_an_explicit_adapter():
-    assert set(build_model_adapters())=={'groq','cerebras','openrouter','google','cloudflare'}
+    assert set(build_model_adapters())=={'groq','openrouter','google','cloudflare'}
     assert set(build_search_adapters())=={'parallel','you','tavily','firecrawl'}

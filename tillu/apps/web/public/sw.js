@@ -1,0 +1,6 @@
+const CACHE='tillu-shell-v2';const SHELL=['/','/manifest.webmanifest','/tillu-icon.svg'];
+self.addEventListener('install',e=>e.waitUntil(caches.open(CACHE).then(c=>c.addAll(SHELL)).then(()=>self.skipWaiting())));
+self.addEventListener('activate',e=>e.waitUntil(Promise.all([self.clients.claim(),caches.keys().then(keys=>Promise.all(keys.filter(x=>x!==CACHE).map(x=>caches.delete(x))))])));
+self.addEventListener('fetch',e=>{if(e.request.method!=='GET'||new URL(e.request.url).pathname.startsWith('/api/'))return;e.respondWith(fetch(e.request).then(r=>{let c=r.clone();caches.open(CACHE).then(x=>x.put(e.request,c));return r}).catch(()=>caches.match(e.request).then(r=>r||caches.match('/'))))});
+self.addEventListener('push',event=>{let data={title:'TILLU',body:'A new briefing is ready.'};try{data={...data,...event.data.json()}}catch{}event.waitUntil(self.registration.showNotification(data.title,{body:data.body,icon:'/tillu-icon.svg',badge:'/tillu-icon.svg',data:{url:'/?page=Briefings',notification_id:data.notification_id}}))});
+self.addEventListener('notificationclick',event=>{event.notification.close();let url=event.notification.data?.url||'/';event.waitUntil(clients.matchAll({type:'window',includeUncontrolled:true}).then(list=>{for(let client of list){if('focus'in client){client.navigate(url);return client.focus()}}return clients.openWindow(url)}))});

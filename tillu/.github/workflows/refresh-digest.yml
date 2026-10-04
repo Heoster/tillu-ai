@@ -1,0 +1,22 @@
+name: Refresh TILLU intelligence cache
+on:
+  schedule:
+    - cron: '30 0,12 * * *'
+  workflow_dispatch:
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Refresh weather, news and trends
+        env:
+          TILLU_API_URL: ${{ secrets.TILLU_API_URL }}
+          TILLU_CRON_SECRET: ${{ secrets.TILLU_CRON_SECRET }}
+        run: |
+          test -n "$TILLU_API_URL"
+          test -n "$TILLU_CRON_SECRET"
+          curl --fail --retry 3 --max-time 90 \
+            -X POST "$TILLU_API_URL/api/internal/refresh-digest" \
+            -H "x-cron-secret: $TILLU_CRON_SECRET"
+          curl --fail --retry 3 --max-time 180 \
+            -X POST "$TILLU_API_URL/api/internal/run-due-automations" \
+            -H "x-cron-secret: $TILLU_CRON_SECRET"
