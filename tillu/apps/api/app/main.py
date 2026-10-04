@@ -417,8 +417,11 @@ async def chat(body: ChatRequest, user: User = Depends(current_user)):
         message=f"I prepared **{label.lower()}** for review. Nothing has been changed or sent yet."
         response={"message":message,"plan":None,"ui":{"layout":"approval"},"provider":"tillu-action-router","model":"deterministic-policy","run_id":run_id,"conversation_id":conversation_id,"tools":[],"citations":[],"widgets":[{"type":"action_approval","title":label,"proposal_id":action['id'],"kind":action['kind'],"payload":action['payload'],"expires_at":action['expires_at']}],"generated_at":now()}
         add_message(conversation_id,"assistant",message,now(),response_metadata(response));save_checkpoint(run_id,user.id,{"proposal_id":action['id'],"kind":action['kind']},"waiting_approval",now())
-        if honcho_memory.configured:await honcho_memory.ingest_exchange(conversation_id,body.message,message)
-        elif settings.environment=='production' and settings.honcho_required:raise HTTPException(503,'Required Honcho memory is unavailable')
+        if honcho_memory.configured:
+            try:await honcho_memory.ingest_exchange(conversation_id,body.message,message)
+            except Exception as _he:import logging as _l;_l.getLogger(__name__).warning('Honcho ingest degraded (action path) for %s: %s',conversation_id,type(_he).__name__)
+        elif settings.environment=='production' and settings.honcho_required:
+            import logging as _l;_l.getLogger(__name__).warning('Honcho not configured but required — skipping ingest for action path %s',conversation_id)
         return response
     if settings.require_ai_provider and not any(p.configured for p in gateway.providers()):
         raise HTTPException(503,"No hosted AI provider is configured. Configure at least one provider API key; TILLU will not fabricate an AI response.")
@@ -433,13 +436,33 @@ async def chat(body: ChatRequest, user: User = Depends(current_user)):
         try:
             result=await orchestrate(body.message,user.id,conversation_id,previous)
             response={"message":result["answer"],"plan":None,"ui":state["ui"],"provider":result.get("provider"),"model":result.get("model"),"run_id":run_id,"conversation_id":conversation_id,"tools":[x.get("tool") for x in result.get("tool_results",[])],"citations":result.get("citations",[]),"widgets":result.get("widgets",[]),"agent_cycle":result.get("cycle",[]),"generated_at":result.get("generated_at",now()),"orchestrator_errors":result.get("errors",[])}
-            save_checkpoint(run_id,user.id,{"message":body.message,"intent":result.get("intent"),"tools":response["tools"],"citations":len(response["citations"])},"completed",now())
+            # Surface action proposal from the orchestrator (propose_action node).
+            # The approval widget is already injected by verify(); expose the proposal id at top level too.
+            _orch_proposal=result.get('action_proposal')
+            if _orch_proposal:
+                response["action_proposal_id"]=_orch_proposal['id']
+                response["ui"]={"layout":"approval"}
+            save_checkpoint(run_id,user.id,{"message":body.message,"intent":result.get("intent"),"tools":response["tools"],"citations":len(response["citations"]),"action_proposal_id":response.get("action_proposal_id")},"completed",now())
         except Exception as exc:
             response={"message":"TILLU could not complete this request. No action was taken.","plan":None,"ui":state["ui"],"provider":"orchestrator","model":"failed","run_id":run_id,"conversation_id":conversation_id,"tools":[],"citations":[],"widgets":[{"type":"status","tone":"error","title":"Request interrupted","message":"No action was taken. Try again or check provider availability."}],"generated_at":now(),"orchestrator_errors":[type(exc).__name__]}
             save_checkpoint(run_id,user.id,{"message":body.message,"error":type(exc).__name__},"failed",now())
     add_message(conversation_id,"assistant",response["message"],now(),response_metadata(response));audit("chat.orchestrated","read",{"run_id":run_id,"tools":response["tools"],"planned":bool(plan)},now())
-    if honcho_memory.configured:await honcho_memory.ingest_exchange(conversation_id,body.message,response['message'])
-    elif settings.environment=='production' and settings.honcho_required:raise HTTPException(503,'Required Honcho memory is unavailable')
+    if honcho_memory.configured:
+        try:await honcho_memory.ingest_exchange(conversation_id,body.message,response['message'])
+        except Exception as _he:import logging as _l;_l.getLogger(__name__).warning('Honcho ingest degraded for %s: %s',conversation_id,type(_he).__name__)
+    elif settings.environment=='production' and settings.honcho_required:
+        import logging as _l;_l.getLogger(__name__).warning('Honcho not configured but required — skipping ingest for %s',conversation_id)
+    # Auto-learn: fire-and-forget background task; never blocks the chat response
+    _msgs=conversation_messages(conversation_id,user.id) or []
+    if len(_msgs)>=3:
+        async def _auto_analyze(_uid=user.id,_cid=conversation_id):
+            import logging as _l;_log=_l.getLogger(__name__)
+            try:
+                await analyze_session(_uid,_cid)
+                _log.info('Auto-learning completed for session %s',_cid)
+            except Exception as _exc:
+                _log.warning('Auto-learning failed for session %s: %s',_cid,type(_exc).__name__)
+        asyncio.create_task(_auto_analyze())
     return response
 
 @app.post("/api/chat/stream")

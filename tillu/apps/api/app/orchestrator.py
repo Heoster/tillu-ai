@@ -13,7 +13,7 @@ from typing import Any,TypedDict
 from langgraph.graph import StateGraph,END
 from .providers import gateway
 from .sources import sources
-from .repository import load_chunks, load_files, list_tasks, list_events, load_progress, list_notes, list_automations, list_automation_runs, get_user_settings, list_memories, list_canvases, list_history, list_sources, load_audit, list_skills, search_sessions, list_conclusions
+from .repository import load_chunks, load_files, list_tasks, list_events, load_progress, list_notes, list_automations, list_automation_runs, get_user_settings, list_memories, list_canvases, list_history, list_sources, load_audit, list_skills, search_sessions, list_conclusions, create_action_proposal
 from .syllabus import SYLLABUS
 from .config import settings
 from .rag import search_chunks
@@ -22,7 +22,7 @@ from .persona import runtime_context_prompt
 from .models import ActionPlan,Risk
 from .webreader import read_page
 from .communications import gmail
-from .capabilities import registry,CapabilitySpec
+from .capabilities import registry,CapabilitySpec,ACTION_SCHEMAS,validate_action_payload,ACTION_LABELS
 from .delegation import execute_delegates
 from .honcho_adapter import honcho_memory
 
@@ -128,7 +128,7 @@ class AgentState(TypedDict,total=False):
     intent:str;selected_tools:list[dict[str,Any]];tool_results:list[dict[str,Any]]
     memory:str;context:str;answer:str;provider:str;model:str;citations:list[dict[str,Any]];errors:list[str]
     widgets:list[dict[str,Any]];generated_at:str;cycle:list[dict[str,Any]];plan_steps:list[str];preferences:dict[str,Any]
-    iteration:int;needs_replan:bool;evaluation:dict[str,Any]
+    iteration:int;needs_replan:bool;evaluation:dict[str,Any];action_proposal:dict[str,Any]|None;honcho_degraded:bool
 
 FRESH=('latest','today','current','news','weather','trend','recent','price','score','search','who won','this week')
 DOC=('pdf','document','file','notes','according to','uploaded','paper')
@@ -196,7 +196,31 @@ async def classify(state:AgentState):
     try:
         live=await gateway.json_chat(prompt,'intent',220)
         if live:
-            d=live['json'];state['intent']=str(d.get('intent') or state['intent'])[:80];state['cycle'].append({'phase':'intent','status':'completed',**live['route'],'intent':state['intent']})
+            d=live['json'];state['intent']=str(d.get('intent') or state['intent'])[:80]
+            # Wire the intent model's output to actually gate tool selection.
+            # Rules are conservative: only drop tools the model is confident aren't needed.
+            # plan_cycle remains the final arbiter and can restore tools if evidence is missing.
+            tools=state['selected_tools']
+            # 1. No fresh data needed → drop live-search tools (web, news, trends).
+            #    Keep them if the query explicitly asks for a search/headline/current event.
+            _q_lower=state['query'].lower()
+            _explicit_search=any(x in _q_lower for x in ('search','look up','find online','latest news','current news','headlines','what happened'))
+            if not d.get('needs_fresh_data',True) and not _explicit_search:
+                tools=[t for t in tools if t['name'] not in {'web_search','news','trends'}]
+            # 2. Simple intent → drop parallel_delegates (heavyweight multi-workstream tool).
+            #    Only warranted for genuinely complex, multi-source research.
+            if d.get('complexity')=='simple':
+                tools=[t for t in tools if t['name']!='parallel_delegates']
+            # 3. Conversation/chitchat intent with no personal-data domains → drop personal
+            #    context tools (workspace, memory, settings) to avoid unnecessary DB reads.
+            _personal_tools={'workspace_context','memory_context','user_model_context','session_search','settings_context','activity_context'}
+            _personal_domains={'personal','memory','workspace','settings','activity','notes','schedule','tasks'}
+            _domains=set(str(x).lower() for x in (d.get('domains') or []))
+            _intent_str=state['intent'].lower()
+            if _intent_str in {'conversation','chitchat','greeting','general_knowledge','factual_question'} and not _domains.intersection(_personal_domains):
+                tools=[t for t in tools if t['name'] not in _personal_tools]
+            state['selected_tools']=tools;state['intent']='tool_augmented' if tools else 'conversation'
+            state['cycle'].append({'phase':'intent','status':'completed',**live['route'],'intent':state['intent'],'tools_after_intent':[t['name'] for t in tools]})
     except Exception as exc:state['errors'].append('intent_router:'+type(exc).__name__);state['cycle'].append({'phase':'intent','status':'fallback','provider':'deterministic','intent':state['intent']})
     if not state['cycle']:state['cycle'].append({'phase':'intent','status':'fallback','provider':'deterministic','intent':state['intent']})
     return state
@@ -228,10 +252,20 @@ async def retrieve(state:AgentState):
 async def assemble(state:AgentState):
     sections=[];citations=[];n=1
     if honcho_memory.configured:
-        dialectic=await honcho_memory.recall(state['query'],state.get('conversation_id') or None)
-        sections.append('Required Honcho dialectic user context:\n'+dialectic)
-        state['cycle'].append({'phase':'honcho_recall','status':'completed','provider':'honcho','workspace':settings.honcho_workspace_id})
-    elif settings.environment=='production' and settings.honcho_required:raise RuntimeError('Required Honcho memory is unavailable')
+        try:
+            dialectic=await honcho_memory.recall(state['query'],state.get('conversation_id') or None)
+            sections.append('Required Honcho dialectic user context:\n'+dialectic)
+            state['cycle'].append({'phase':'honcho_recall','status':'completed','provider':'honcho','workspace':settings.honcho_workspace_id})
+        except Exception as _honcho_exc:
+            import logging as _logging
+            _logging.getLogger(__name__).warning('Honcho recall degraded for session %s: %s',state.get('conversation_id'),type(_honcho_exc).__name__)
+            state['honcho_degraded']=True
+            state['cycle'].append({'phase':'honcho_recall','status':'degraded','provider':'honcho','error':type(_honcho_exc).__name__})
+    elif settings.environment=='production' and settings.honcho_required:
+        import logging as _logging
+        _logging.getLogger(__name__).warning('Honcho not configured but required in production — proceeding with local memory only')
+        state['honcho_degraded']=True
+        state['cycle'].append({'phase':'honcho_recall','status':'degraded','provider':'honcho','error':'not_configured'})
     if state.get('preferences',{}).get('memory_capture_enabled',True):
         memories=list_memories(state['user_id'])[:30]
         if memories:sections.append('Owner-approved private memory:\n'+json.dumps([{'layer':x['layer'],'key':x['key'],'value':x['value']} for x in memories],ensure_ascii=False)[:8000])
@@ -325,7 +359,8 @@ async def respond(state:AgentState):
     current=datetime.now(tz).strftime('%A, %d %B %Y at %I:%M %p %Z')
     state['generated_at']=datetime.now(tz).isoformat();state['widgets']=build_widgets(state.get('tool_results',[]))
     proactive=' If proactive planning is enabled, suggest at most one useful routine adjustment grounded in approved memory, tasks, or calendar. Never create or change anything without approval.' if prefs.get('proactive_planning_enabled',False) else ''
-    messages=[{'role':'system','content':runtime_context_prompt(current,tz_name,prefs.get('response_style','balanced'))+proactive},*state.get('history',[]),{'role':'user','content':state['query']+(f"\n\nVerified tool context:\n{state['context']}" if state.get('context') else '')}]
+    honcho_note=' [Note: long-term dialectic memory is temporarily unavailable due to a connectivity issue. Rely on local memory and conversation history for personalization. Do not claim to remember things that are not present in this context.]' if state.get('honcho_degraded') else ''
+    messages=[{'role':'system','content':runtime_context_prompt(current,tz_name,prefs.get('response_style','balanced'))+proactive+honcho_note},*state.get('history',[]),{'role':'user','content':state['query']+(f"\n\nVerified tool context:\n{state['context']}" if state.get('context') else '')}]
     if not await __import__('asyncio').to_thread(cloud.consume_quota,state['user_id'],'model-gateway','model',1,state.get('conversation_id')):raise PermissionError('Daily model quota exceeded')
     live=await gateway.chat(messages,phase='execution')
     if live:
@@ -349,15 +384,67 @@ async def verify(state:AgentState):
     # Deterministic post-check: remove citation markers that have no corresponding source.
     valid={str(x['id']) for x in state.get('citations',[])}
     state['answer']=re.sub(r'\[(\d+)\]',lambda m:m.group(0) if m.group(1) in valid else '',state.get('answer',''))
+    # Attach action approval widget if propose_action created a proposal this turn.
+    proposal=state.get('action_proposal')
+    if proposal:
+        label=ACTION_LABELS.get(proposal['kind'],proposal['kind'].replace('_',' ').title())
+        widget={'type':'action_approval','title':label,'proposal_id':proposal['id'],'kind':proposal['kind'],'payload':proposal['payload'],'expires_at':proposal['expires_at']}
+        # Insert after agent_cycle widget so it appears prominently.
+        insert_at=1 if state.get('widgets') and state['widgets'][0].get('type')=='agent_cycle' else 0
+        state['widgets'].insert(insert_at,widget)
+    return state
+
+# Action-intent keywords that gate the propose_action LLM call.
+# Matches the same guard used in infer_chat_action to avoid spending tokens on non-action queries.
+_ACTION_INTENT_RE=re.compile(r'(?i)\b(create|add|new|update|change|rename|delete|remove|clear|run|index|set|turn on|turn off|send|draft|open|navigate|start|save|remember|schedule|complete|finish|mark|play)\b')
+
+async def propose_action(state:AgentState):
+    """Extract an action proposal from the user query after the model has responded.
+
+    This runs after respond() so we know the model agreed to perform an action
+    (it said so in its answer). We use the intent model — already warmed up by classify()
+    — to identify the action kind and payload, then create a pending proposal.
+    The proposal is never executed here; it waits for user approval via /decide.
+    """
+    state['action_proposal']=None
+    # Fast gate: skip entirely for queries with no action-intent vocabulary.
+    if not _ACTION_INTENT_RE.search(state['query']):
+        state['cycle'].append({'phase':'action_proposal','status':'skipped','provider':'deterministic','reason':'no_action_keywords'})
+        return state
+    # Also skip for pure read/question intents identified by classify().
+    _skip_intents={'web_search','search','question','factual_question','general_knowledge','weather_query','news_query','calculation','recall','conversation','chitchat','greeting'}
+    if state.get('intent','').lower() in _skip_intents:
+        state['cycle'].append({'phase':'action_proposal','status':'skipped','provider':'deterministic','reason':'read_only_intent'})
+        return state
+    prompt=[
+        {'role':'system','content':'You are TILLU action extractor. The user sent a message and TILLU responded. Determine if the user explicitly requested a write/action (not just information). Return JSON only: {"kind":null,"payload":{}}. Set kind=null if no action was requested. Allowed kinds and their required fields: '+json.dumps(ACTION_SCHEMAS)+'. Never invent IDs. Use only data present in the request.'},
+        {'role':'user','content':json.dumps({'query':state['query'],'tillu_answer':state.get('answer','')[:800]})}
+    ]
+    try:
+        live=await gateway.json_chat(prompt,'intent',350)
+        if not live:state['cycle'].append({'phase':'action_proposal','status':'skipped','provider':'intent','reason':'no_provider'});return state
+        raw=live['json'];kind=raw.get('kind')
+        if not kind:state['cycle'].append({'phase':'action_proposal','status':'no_action',**live['route']});return state
+        payload=validate_action_payload(kind,raw.get('payload') or {})
+        if payload is None:state['cycle'].append({'phase':'action_proposal','status':'invalid_payload',**live['route'],'kind':kind});return state
+        stamp=datetime.now(timezone.utc)
+        from datetime import timedelta as _td
+        row={'id':str(uuid4()),'user_id':state['user_id'],'kind':kind,'payload':payload,'status':'pending','created_at':stamp.isoformat(),'expires_at':(stamp+_td(minutes=15)).isoformat()}
+        create_action_proposal(row)
+        state['action_proposal']=row
+        state['cycle'].append({'phase':'action_proposal','status':'proposed',**live['route'],'kind':kind})
+    except Exception as exc:
+        state['errors'].append('propose_action:'+type(exc).__name__)
+        state['cycle'].append({'phase':'action_proposal','status':'error','provider':'intent','error':type(exc).__name__})
     return state
 
 def build_graph():
     graph=StateGraph(AgentState)
-    for name,node in [('classify',classify),('plan',plan_cycle),('retrieve',retrieve),('assemble',assemble),('evaluate',evaluate_evidence),('revise',revise_plan),('respond',respond),('verify',verify)]:graph.add_node(name,node)
-    graph.set_entry_point('classify');graph.add_edge('classify','plan');graph.add_edge('plan','retrieve');graph.add_edge('retrieve','assemble');graph.add_edge('assemble','evaluate');graph.add_conditional_edges('evaluate',after_evaluation,{'revise':'revise','respond':'respond'});graph.add_edge('revise','retrieve');graph.add_edge('respond','verify');graph.add_edge('verify',END);return graph.compile()
+    for name,node in [('classify',classify),('plan',plan_cycle),('retrieve',retrieve),('assemble',assemble),('evaluate',evaluate_evidence),('revise',revise_plan),('respond',respond),('propose_action',propose_action),('verify',verify)]:graph.add_node(name,node)
+    graph.set_entry_point('classify');graph.add_edge('classify','plan');graph.add_edge('plan','retrieve');graph.add_edge('retrieve','assemble');graph.add_edge('assemble','evaluate');graph.add_conditional_edges('evaluate',after_evaluation,{'revise':'revise','respond':'respond'});graph.add_edge('revise','retrieve');graph.add_edge('respond','propose_action');graph.add_edge('propose_action','verify');graph.add_edge('verify',END);return graph.compile()
 
 orchestrator=build_graph()
 async def orchestrate(query,user_id,conversation_id='',history=None):
     defaults={'timezone':'Asia/Kolkata','response_style':'balanced','default_latitude':settings.default_latitude,'default_longitude':settings.default_longitude,'show_agent_cycle':True,'auto_fresh_search':True,'notifications_enabled':True}
     preferences=defaults|get_user_settings(user_id).get('settings',{})
-    return await orchestrator.ainvoke({'query':query,'user_id':user_id,'conversation_id':conversation_id,'history':history or [],'preferences':preferences,'iteration':0,'needs_replan':False})
+    return await orchestrator.ainvoke({'query':query,'user_id':user_id,'conversation_id':conversation_id,'history':history or [],'preferences':preferences,'iteration':0,'needs_replan':False,'action_proposal':None})

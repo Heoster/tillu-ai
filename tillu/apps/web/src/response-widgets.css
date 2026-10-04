@@ -1,1 +1,153 @@
-/* Reserved for future component extraction. Response widget styles currently live in styles.css. */
+/* ── Response Widgets ──────────────────────────────────────────────────────── */
+.responseWidgets{display:flex;flex-direction:column;gap:10px;margin-top:14px}
+.responseWidget{border:1px solid var(--line);border-radius:10px;overflow:hidden;background:var(--surface);font-size:12px}
+.responseWidget header{display:flex;align-items:center;gap:9px;padding:11px 14px;border-bottom:1px solid var(--line);background:var(--surface2)}
+.responseWidget header svg{width:14px;color:var(--accent);flex-shrink:0}
+.responseWidget header b{font-size:11px;font-weight:600;flex:1}
+.responseWidget header em{font-size:9px;color:var(--muted);font-style:normal}
+.responseWidget header small{font-size:9px;color:var(--muted);margin-left:auto}
+
+/* ── Agent Cycle ── */
+.cycleWidget .cyclePhases{padding:8px}
+.cycleWidget .cyclePhases>div{display:flex;align-items:center;gap:9px;padding:7px 8px;border-radius:7px}
+.cycleWidget .cyclePhases>div:hover{background:var(--surface2)}
+.cycleWidget .cyclePhases>div>i{width:20px;height:20px;border-radius:50%;background:var(--surface3);color:var(--muted);font-style:normal;font-size:9px;font-weight:700;display:grid;place-items:center;flex-shrink:0}
+.cycleWidget .cyclePhases>div>span{flex:1;display:flex;flex-direction:column;min-width:0}
+.cycleWidget .cyclePhases>div>span b{font-size:11px;text-transform:capitalize}
+.cycleWidget .cyclePhases>div>span small{font-size:9px;color:var(--muted)}
+.cycleWidget .cyclePhases>div>em{font-style:normal;font-size:9px;padding:2px 7px;border-radius:10px}
+.cycleWidget .cyclePhases>div>em.completed{background:color-mix(in srgb,var(--success) 15%,transparent);color:var(--success)}
+.cycleWidget .cyclePhases>div>em.running{background:color-mix(in srgb,var(--accent) 15%,transparent);color:var(--accent)}
+.cycleWidget .cyclePhases>div>em.degraded{background:color-mix(in srgb,var(--warning) 15%,transparent);color:var(--warning)}
+.cycleWidget .cyclePhases>div>em.fallback{background:color-mix(in srgb,var(--muted) 15%,transparent);color:var(--muted)}
+.cycleWidget .cyclePhases>div>em.skipped{color:var(--muted)}
+
+/* ── Action Approval ── */
+.chatApproval pre{margin:0;padding:12px 14px;font-size:10px;font-family:'JetBrains Mono',monospace;background:var(--surface2);max-height:160px;overflow:auto;white-space:pre-wrap;word-break:break-all;border-bottom:1px solid var(--line)}
+.approvalButtons{display:flex;gap:8px;padding:11px 14px}
+.approvalButtons button{flex:1;padding:8px;border-radius:7px;font-size:11px;font-weight:500;cursor:pointer;border:1px solid var(--line)}
+.approvalButtons button:first-child{background:var(--surface2);color:var(--text)}
+.approvalButtons button:last-child{background:var(--accent);color:#fff;border-color:transparent}
+.approvalButtons button:last-child:hover{background:var(--accent2)}
+.approvalButtons button:disabled{opacity:.5;cursor:default}
+.approvalResult{padding:10px 14px;font-size:11px;color:var(--success)}
+
+/* ── Weather ── */
+.weatherWidget>div{display:grid;grid-template-columns:auto 1fr 1fr 1fr;align-items:center;gap:0;padding:0}
+.weatherWidget>div strong{font:700 36px/1 Manrope;padding:16px 18px;border-right:1px solid var(--line)}
+.weatherWidget>div>span{display:flex;flex-direction:column;padding:12px 14px;border-right:1px solid var(--line);font-size:9px;color:var(--muted)}
+.weatherWidget>div>span b{font-size:16px;color:var(--text);font-weight:600;margin-top:4px}
+.weatherWidget>div>span:last-child{border:0}
+
+/* ── Source List (news / web / trends) ── */
+.sourceWidget a,.sourceWidget .docHit{display:flex;align-items:center;gap:11px;padding:10px 14px;border-top:1px solid var(--line);text-decoration:none;color:var(--text)}
+.sourceWidget a:first-of-type,.sourceWidget .docHit:first-child{border-top:none}
+.sourceWidget a:hover{background:var(--surface2)}
+.sourceWidget a>span,.sourceWidget .docHit>span{width:20px;height:20px;border-radius:5px;background:var(--surface3);color:var(--muted);font-size:9px;font-weight:700;display:grid;place-items:center;flex-shrink:0}
+.sourceWidget a>div{flex:1;min-width:0;display:flex;flex-direction:column}
+.sourceWidget a b,.sourceWidget .docHit b{font-size:11px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.sourceWidget a small,.sourceWidget .docHit small{font-size:9px;color:var(--muted);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.sourceWidget a>svg{width:13px;color:var(--muted);flex-shrink:0}
+.sourceWidget .docHit>svg{width:13px;color:var(--accent);flex-shrink:0}
+
+/* ── Workspace ── */
+.workspaceWidget .widgetColumns{display:grid;grid-template-columns:1fr 1fr;gap:0}
+.workspaceWidget .widgetColumns>div{padding:12px 14px;border-right:1px solid var(--line)}
+.workspaceWidget .widgetColumns>div:last-child{border:0}
+.workspaceWidget small{font-size:8px;letter-spacing:1px;color:var(--muted);display:block;margin-bottom:7px}
+.workspaceWidget p{font-size:11px;margin:4px 0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--text2)}
+.workspaceWidget p em{font-style:normal;font-size:9px;color:var(--muted);margin-left:5px}
+
+/* ── Status ── */
+.statusWidget{display:flex;align-items:center;gap:12px;padding:13px 14px}
+.statusWidget svg{width:16px;flex-shrink:0;color:var(--accent)}
+.statusWidget.error svg{color:var(--danger)}
+.statusWidget.warning svg{color:var(--warning)}
+.statusWidget div{display:flex;flex-direction:column}
+.statusWidget div b{font-size:12px}
+.statusWidget div p{margin:2px 0 0;font-size:10px;color:var(--muted)}
+
+/* ── Calculation ── */
+.calculationWidget{display:flex;align-items:center;gap:14px;padding:13px 16px}
+.calculationWidget svg{width:16px;color:var(--accent);flex-shrink:0}
+.calculationWidget div{display:flex;flex-direction:column}
+.calculationWidget small{font-size:10px;color:var(--muted);font-family:'JetBrains Mono',monospace}
+.calculationWidget strong{font:700 22px/1.2 Manrope;color:var(--text)}
+
+/* ── System ── */
+.systemWidget{display:flex;align-items:center;gap:12px;padding:13px 16px}
+.systemWidget svg{width:16px;color:var(--accent);flex-shrink:0}
+.systemWidget div b{font-size:12px}
+.systemWidget div p{margin:2px 0 0;font-size:10px;color:var(--muted)}
+
+/* ── Live dot ── */
+.liveDot{width:7px;height:7px;border-radius:50%;display:inline-block;background:var(--success);box-shadow:0 0 6px var(--success);margin-right:5px}
+
+/* ── ── ── Rich Text ── ── ── */
+.richText{font-size:13px;line-height:1.7;color:var(--text)}
+.richText p{margin:0 0 10px}
+.richText p:last-child{margin:0}
+.richText h2{font:700 20px/1.3 Manrope;margin:18px 0 8px;color:var(--text)}
+.richText h3{font:600 16px/1.3 Manrope;margin:16px 0 6px;color:var(--text)}
+.richText h4{font:600 13px/1.3 Manrope;margin:12px 0 4px;color:var(--text2)}
+.richText ul,.richText ol{margin:6px 0 10px;padding-left:22px}
+.richText li{margin:4px 0;font-size:13px}
+.richText .numbered{display:flex;gap:10px;align-items:baseline;margin:5px 0}
+.richText .numbered b{color:var(--accent);font-weight:700;min-width:18px}
+.richText strong{font-weight:600;color:var(--text)}
+.richText em{font-style:italic;color:var(--text2)}
+.richText code{background:var(--surface3);border:1px solid var(--line);border-radius:4px;padding:1px 5px;font-size:11px;font-family:'JetBrains Mono',ui-monospace,monospace;color:#c4b5fd}
+.richText pre{background:var(--surface2);border:1px solid var(--line);border-radius:8px;overflow:hidden;margin:10px 0}
+.richText pre .codeHeader{display:flex;align-items:center;justify-content:space-between;padding:7px 12px;border-bottom:1px solid var(--line);background:var(--surface3)}
+.richText pre .codeLang{font-size:9px;color:var(--muted);font-family:monospace;text-transform:uppercase;letter-spacing:1px}
+.richText pre .codeCopy{font-size:9px;background:none;border:1px solid var(--line);color:var(--muted);border-radius:4px;padding:2px 7px;cursor:pointer}
+.richText pre .codeCopy:hover{color:var(--text);border-color:var(--text)}
+.richText pre code{display:block;padding:12px 14px;font-size:11.5px;font-family:'JetBrains Mono',ui-monospace,monospace;color:#e2d9f3;white-space:pre;overflow-x:auto;background:none;border:none;border-radius:0}
+.richText blockquote{border-left:3px solid var(--accent);margin:10px 0;padding:8px 14px;background:color-mix(in srgb,var(--accent) 8%,transparent);border-radius:0 6px 6px 0}
+.richText blockquote p{color:var(--text2);margin:0}
+.richText hr{border:none;border-top:1px solid var(--line);margin:14px 0}
+.richText table{width:100%;border-collapse:collapse;margin:10px 0;font-size:12px}
+.richText table th{background:var(--surface3);font-weight:600;text-align:left;padding:8px 11px;border:1px solid var(--line);font-size:11px;color:var(--text2)}
+.richText table td{padding:7px 11px;border:1px solid var(--line);color:var(--text)}
+.richText table tr:nth-child(even) td{background:var(--surface2)}
+.richText a{color:var(--accent);text-decoration:none}
+.richText a:hover{text-decoration:underline}
+
+/* ── ── ── Chat messages ── ── ── */
+.messageBody{display:flex;flex-direction:column;min-width:0;flex:1}
+.messageBubble{padding:12px 16px;border-radius:12px;max-width:720px}
+.msg.user .messageBubble{background:var(--accent);color:#fff;border-radius:12px 12px 2px 12px;margin-left:auto}
+.msg.user .messageBubble .richText{color:#fff}
+.msg.user .messageBubble .richText code{background:rgba(255,255,255,.18);border-color:rgba(255,255,255,.25);color:#fff}
+.msg.ai .messageBubble{background:var(--surface);border:1px solid var(--line);border-radius:2px 12px 12px 12px}
+.responseMeta{display:flex;align-items:center;gap:8px;margin-top:8px;flex-wrap:wrap}
+.responseMeta span{font-size:9px;color:var(--muted)}
+.responseMeta span.providerBadge{background:var(--surface2);border:1px solid var(--line);border-radius:10px;padding:2px 7px}
+.responseMeta button{font-size:9px;background:none;border:1px solid var(--line);color:var(--muted);border-radius:5px;padding:2px 7px;cursor:pointer}
+.responseMeta button:hover{color:var(--text);border-color:var(--text)}
+.responseMeta .copyOk{color:var(--success)}
+.toolChips{display:flex;flex-wrap:wrap;gap:5px;margin-top:8px}
+.toolChips span{display:flex;align-items:center;gap:4px;font-size:9px;background:var(--surface3);border:1px solid var(--line);border-radius:10px;padding:3px 8px;color:var(--text2)}
+.toolChips span svg{width:10px;color:var(--accent)}
+.citationList{display:flex;flex-wrap:wrap;gap:5px;margin-top:8px}
+.citationList a{font-size:9px;color:var(--accent);text-decoration:none;background:var(--surface2);border:1px solid var(--line);border-radius:5px;padding:2px 7px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:200px}
+.citationList a:hover{background:var(--surface3)}
+
+/* ── ── ── Brain Live Pane ── ── ── */
+.brainLive{display:flex;flex-direction:column;gap:6px;margin-top:12px}
+.brainStep{display:flex;align-items:center;gap:9px;padding:8px 10px;border-radius:7px;background:var(--surface2);border:1px solid var(--line)}
+.brainStep>i{width:22px;height:22px;border-radius:50%;background:var(--surface3);color:var(--muted);font-style:normal;font-size:9px;font-weight:700;display:grid;place-items:center;flex-shrink:0}
+.brainStep.live>i{background:color-mix(in srgb,var(--accent) 20%,transparent);color:var(--accent);animation:pulseDot 1s infinite}
+@keyframes pulseDot{0%,100%{opacity:1}50%{opacity:.4}}
+.brainStep span{flex:1;display:flex;flex-direction:column;min-width:0}
+.brainStep b{font-size:11px;text-transform:capitalize}
+.brainStep small{font-size:9px;color:var(--muted)}
+.brainStep em{font-style:normal;font-size:9px;padding:2px 6px;border-radius:8px}
+.brainStep em.completed{background:color-mix(in srgb,var(--success) 15%,transparent);color:var(--success)}
+.brainStep em.running{background:color-mix(in srgb,var(--accent) 15%,transparent);color:var(--accent)}
+.brainStep em.fallback{color:var(--muted)}
+.brainStep em.degraded{background:color-mix(in srgb,var(--warning,#d6a74b) 15%,transparent);color:var(--warning,#d6a74b)}
+.brainLive>.stopBtn{border:1px solid var(--line);background:transparent;color:var(--muted);border-radius:7px;padding:7px 10px;cursor:pointer;font-size:11px;margin-top:4px}
+.brainLive>.stopBtn:hover{border-color:var(--danger);color:var(--danger)}
+.dots::after{content:'';animation:ellipsis 1.2s infinite}
+@keyframes ellipsis{0%{content:''}33%{content:'.'}66%{content:'..'}100%{content:'...'}}

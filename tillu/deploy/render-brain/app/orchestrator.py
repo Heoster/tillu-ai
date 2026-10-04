@@ -128,7 +128,7 @@ class AgentState(TypedDict,total=False):
     intent:str;selected_tools:list[dict[str,Any]];tool_results:list[dict[str,Any]]
     memory:str;context:str;answer:str;provider:str;model:str;citations:list[dict[str,Any]];errors:list[str]
     widgets:list[dict[str,Any]];generated_at:str;cycle:list[dict[str,Any]];plan_steps:list[str];preferences:dict[str,Any]
-    iteration:int;needs_replan:bool;evaluation:dict[str,Any]
+    iteration:int;needs_replan:bool;evaluation:dict[str,Any];honcho_degraded:bool
 
 FRESH=('latest','today','current','news','weather','trend','recent','price','score','search','who won','this week')
 DOC=('pdf','document','file','notes','according to','uploaded','paper')
@@ -228,10 +228,20 @@ async def retrieve(state:AgentState):
 async def assemble(state:AgentState):
     sections=[];citations=[];n=1
     if honcho_memory.configured:
-        dialectic=await honcho_memory.recall(state['query'],state.get('conversation_id') or None)
-        sections.append('Required Honcho dialectic user context:\n'+dialectic)
-        state['cycle'].append({'phase':'honcho_recall','status':'completed','provider':'honcho','workspace':settings.honcho_workspace_id})
-    elif settings.environment=='production' and settings.honcho_required:raise RuntimeError('Required Honcho memory is unavailable')
+        try:
+            dialectic=await honcho_memory.recall(state['query'],state.get('conversation_id') or None)
+            sections.append('Required Honcho dialectic user context:\n'+dialectic)
+            state['cycle'].append({'phase':'honcho_recall','status':'completed','provider':'honcho','workspace':settings.honcho_workspace_id})
+        except Exception as _honcho_exc:
+            import logging as _logging
+            _logging.getLogger(__name__).warning('Honcho recall degraded for session %s: %s',state.get('conversation_id'),type(_honcho_exc).__name__)
+            state['honcho_degraded']=True
+            state['cycle'].append({'phase':'honcho_recall','status':'degraded','provider':'honcho','error':type(_honcho_exc).__name__})
+    elif settings.environment=='production' and settings.honcho_required:
+        import logging as _logging
+        _logging.getLogger(__name__).warning('Honcho not configured but required in production — proceeding with local memory only')
+        state['honcho_degraded']=True
+        state['cycle'].append({'phase':'honcho_recall','status':'degraded','provider':'honcho','error':'not_configured'})
     if state.get('preferences',{}).get('memory_capture_enabled',True):
         memories=list_memories(state['user_id'])[:30]
         if memories:sections.append('Owner-approved private memory:\n'+json.dumps([{'layer':x['layer'],'key':x['key'],'value':x['value']} for x in memories],ensure_ascii=False)[:8000])
@@ -325,7 +335,8 @@ async def respond(state:AgentState):
     current=datetime.now(tz).strftime('%A, %d %B %Y at %I:%M %p %Z')
     state['generated_at']=datetime.now(tz).isoformat();state['widgets']=build_widgets(state.get('tool_results',[]))
     proactive=' If proactive planning is enabled, suggest at most one useful routine adjustment grounded in approved memory, tasks, or calendar. Never create or change anything without approval.' if prefs.get('proactive_planning_enabled',False) else ''
-    messages=[{'role':'system','content':runtime_context_prompt(current,tz_name,prefs.get('response_style','balanced'))+proactive},*state.get('history',[]),{'role':'user','content':state['query']+(f"\n\nVerified tool context:\n{state['context']}" if state.get('context') else '')}]
+    honcho_note=' [Note: long-term dialectic memory is temporarily unavailable due to a connectivity issue. Rely on local memory and conversation history for personalization. Do not claim to remember things that are not present in this context.]' if state.get('honcho_degraded') else ''
+    messages=[{'role':'system','content':runtime_context_prompt(current,tz_name,prefs.get('response_style','balanced'))+proactive+honcho_note},*state.get('history',[]),{'role':'user','content':state['query']+(f"\n\nVerified tool context:\n{state['context']}" if state.get('context') else '')}]
     if not await __import__('asyncio').to_thread(cloud.consume_quota,state['user_id'],'model-gateway','model',1,state.get('conversation_id')):raise PermissionError('Daily model quota exceeded')
     live=await gateway.chat(messages,phase='execution')
     if live:
