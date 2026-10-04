@@ -489,9 +489,8 @@ canvas.addEventListener('mousemove', e => {
   moveTimer = setTimeout(() => {
     const { x, y } = canvasCoords(e);
     api('/api/browser-control/mouse/move', { method: 'POST', body: JSON.stringify({ session_id: sessionId, x, y, button: 'left' }) }).catch(() => {});
-  }, 16);
+  }, 50);
 });
-
 canvas.addEventListener('focus', () => {
   canvasFocused = true;
   canvas.classList.add('focused');
@@ -638,3 +637,5 @@ if (UI_TOKEN) {
 </script>
 </body>
 </html>
+
+

@@ -19,7 +19,9 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
     def __init__(self,app,requests_per_minute:int=120):
         super().__init__(app);self.limit=requests_per_minute;self.hits=defaultdict(deque)
     async def dispatch(self,request:Request,call_next):
-        if request.url.path in {'/api/health','/api/ready'}:return await call_next(request)
+        # Health checks and browser-control (high-frequency mouse/stream) are exempt
+        p=request.url.path
+        if p in {'/api/health','/api/ready'} or p.startswith('/api/browser-control/'):return await call_next(request)
         now=time.monotonic();client=request.client.host if request.client else 'unknown';bucket=self.hits[client]
         while bucket and bucket[0]<now-60:bucket.popleft()
         if len(bucket)>=self.limit:return JSONResponse(status_code=429,content={'detail':'Too many requests. Try again shortly.'},headers={'retry-after':'60'})
