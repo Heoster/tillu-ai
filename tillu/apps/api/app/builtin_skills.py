@@ -5,7 +5,7 @@ from datetime import datetime,timezone
 from .learning import parse_skill_md
 from .repository import list_skills,save_skill
 
-SKILLS_ROOT=Path(__file__).resolve().parents[3]/'skills'
+SKILLS_ROOT=Path(__file__).resolve().parents[1]/'skills'
 def install_builtin_skills(user_id):
     existing={(x['name'],x['version']) for x in list_skills(user_id)};installed=[];stamp=datetime.now(timezone.utc).isoformat()
     for path in sorted(SKILLS_ROOT.glob('*/SKILL.md')):
