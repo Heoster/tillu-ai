@@ -332,6 +332,15 @@ app.add_middleware(CORSMiddleware, allow_origins=[x.strip() for x in settings.co
 
 @app.get("/api/health")
 def health(): return {"status":"ok","service":settings.service_name,"role":settings.service_role,"version":"0.8.0","build":settings.build_sha,"uptime_seconds":round(time.time()-STARTED_AT)}
+@app.get('/api/cors-debug')
+def cors_debug():
+    allowed = [x.strip() for x in settings.cors_origins.split(",") if x.strip()]
+    return {
+        "cors_origins": allowed,
+        "public_app_url": settings.public_app_url,
+        "service": settings.service_name,
+        "environment": settings.environment,
+    }
 @app.get('/api/health/live')
 def health_live():return {'status':'alive','service':settings.service_name,'role':settings.service_role,'uptime_seconds':round(time.time()-STARTED_AT)}
 @app.get('/api/health/ready')
