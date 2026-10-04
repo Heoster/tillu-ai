@@ -70,272 +70,233 @@ function SettingsPage({theme,setTheme}){const[prefs,setPrefs]=useState(null),[ac
 function PageTitle({eyebrow,title,copy,action}){return <div className="pageTitle"><div><small>{eyebrow}</small><h1>{title}</h1><p>{copy}</p></div>{action&&<button>{action}</button>}</div>}
 function Metric({value,label}){return <article><b>{value}</b><small>{label}</small></article>}
 function BrowserWorkspace({embedded}){
+  const VPORT_W=1280,VPORT_H=800
   const[url,setUrl]=useState('https://google.com')
   const[session,setSession]=useState('')
-  const[page,setPage]=useState(null)
-  const[shot,setShot]=useState('')
-  const[busy,setBusy]=useState(false)
-  const[err,setErr]=useState('')
   const[status,setStatus]=useState('idle')
-  const[tab,setTab]=useState('screen')
+  const[err,setErr]=useState('')
+  const[tab,setTab]=useState('el')
+  const[elements,setElements]=useState([])
+  const[pageInfo,setPageInfo]=useState(null)
   const[typeText,setTypeText]=useState('')
-  const[selInput,setSelInput]=useState('')
-  const[autoRefresh,setAutoRefresh]=useState(false)
-  const timerRef=useRef(null)
+  const[focused,setFocused]=useState(false)
+  const[busy,setBusy]=useState(false)
+  const canvasRef=useRef(null)
+  const streamAbort=useRef(null)
 
-  useEffect(()=>{
-    if(autoRefresh&&session){timerRef.current=setInterval(()=>snap(),3000)}
-    else clearInterval(timerRef.current)
-    return()=>clearInterval(timerRef.current)
-  },[autoRefresh,session])
+  async function startStream(sid){
+    if(streamAbort.current)streamAbort.current.abort()
+    const ctrl=new AbortController()
+    streamAbort.current=ctrl
+    try{
+      const {authHeaders}=await import('./cloud')
+      const hdrs=await authHeaders()
+      const res=await fetch(`${API}/browser-control/sessions/${sid}/stream?fps=12`,{headers:hdrs,signal:ctrl.signal})
+      if(!res.ok)return
+      const reader=res.body.getReader()
+      let buf=new Uint8Array(0)
+      while(true){
+        const{value,done}=await reader.read()
+        if(done)break
+        const tmp=new Uint8Array(buf.length+value.length)
+        tmp.set(buf);tmp.set(value,buf.length);buf=tmp
+        let i=0
+        while(i<buf.length-1){
+          if(buf[i]===0xFF&&buf[i+1]===0xD8){
+            let j=i+2
+            while(j<buf.length-1){
+              if(buf[j]===0xFF&&buf[j+1]===0xD9){j+=2;break}
+              j++
+            }
+            if(j<buf.length){
+              const jpeg=buf.slice(i,j)
+              const blob=new Blob([jpeg],{type:'image/jpeg'})
+              const burl=URL.createObjectURL(blob)
+              const img=new Image()
+              img.onload=()=>{
+                const c=canvasRef.current
+                if(!c)return
+                const ctx=c.getContext('2d')
+                ctx.drawImage(img,0,0,c.width,c.height)
+                URL.revokeObjectURL(burl)
+              }
+              img.src=burl
+              buf=buf.slice(j);i=0
+            } else break
+          } else i++
+        }
+      }
+    }catch(e){if(e.name!=='AbortError')setErr('Stream lost — reload page to reconnect')}
+  }
 
-  async function startSession(){
+  function stopStream(){if(streamAbort.current){streamAbort.current.abort();streamAbort.current=null}}
+  useEffect(()=>()=>stopStream(),[])
+
+  async function launchSession(){
     setBusy(true);setErr('');setStatus('starting')
     const r=await apiFetch(API+'/browser-control/sessions',{method:'POST'})
     const d=await r.json()
-    if(r.ok){setSession(d.session_id);setStatus('ready')}
-    else{setErr(d.detail||'Failed');setStatus('idle')}
+    if(r.ok){setSession(d.session_id);setStatus('ready');startStream(d.session_id)}
+    else{setErr(d.detail||'Failed to start browser');setStatus('idle')}
     setBusy(false)
   }
 
-  async function go(e){
+  async function navigate(e){
     if(e)e.preventDefault()
     if(!session)return
     const target=/^https?:\/\//.test(url)?url:'https://'+url
-    setBusy(true);setErr('');setStatus('navigating')
+    setStatus('navigating');setErr('')
     const r=await apiFetch(API+'/browser-control/navigate',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({session_id:session,url:target})})
     const d=await r.json()
-    if(r.ok){setPage(d);setUrl(d.url);await snap();setStatus('ready')}
-    else{setErr(d.detail||'Nav failed');setStatus('ready')}
-    setBusy(false)
+    if(r.ok){setPageInfo(d);setUrl(d.url);setElements(d.elements||[]);setStatus('ready')}
+    else{setErr(d.detail||'Navigation failed');setStatus('ready')}
   }
 
-  async function snap(){
+  async function refreshDOM(){
     if(!session)return
-    const r=await apiFetch(`${API}/browser-control/sessions/${session}/screenshot`,{method:'POST'})
-    const d=await r.json();if(!r.ok)return
-    const img=await apiFetch(`${API}/browser-control/artifacts/${d.artifact}`)
-    const blob=await img.blob()
-    setShot(old=>{if(old)URL.revokeObjectURL(old);return URL.createObjectURL(blob)})
-    setTab('screen')
-  }
-
-  async function refreshState(){
-    if(!session)return;setBusy(true)
     const r=await apiFetch(`${API}/browser-control/sessions/${session}`)
-    const d=await r.json();if(r.ok){setPage(d);await snap()}
-    setBusy(false)
-  }
-
-  async function direct(action,args){
-    if(!session)return;setBusy(true);setErr('')
-    const body={session_id:session,action,selector:args.selector||'body',text:args.text,key:args.key}
-    const r=await apiFetch(API+'/browser-control/actions/direct',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(body)})
     const d=await r.json()
-    if(r.ok){setPage(d);await snap()}
-    else setErr(d.detail||'Action failed')
-    setBusy(false)
-  }
-
-  async function scroll(dir){
-    if(!session)return;setBusy(true)
-    const r=await apiFetch(API+'/browser-control/scroll-page',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({session_id:session,url:dir})})
-    const d=await r.json();if(r.ok){setPage(d);await snap()}
-    else setErr(d.detail||'Scroll failed')
-    setBusy(false)
+    if(r.ok){setPageInfo(d);setElements(d.elements||[]);setUrl(d.url)}
   }
 
   async function closeSession(){
-    clearInterval(timerRef.current)
+    stopStream()
     if(session)await apiFetch(`${API}/browser-control/sessions/${session}`,{method:'DELETE'})
-    if(shot)URL.revokeObjectURL(shot)
-    setSession('');setPage(null);setShot('');setStatus('idle');setErr('')
+    setSession('');setPageInfo(null);setElements([]);setStatus('idle');setErr('')
   }
 
-  const elements=page?.elements||[]
-  const links=elements.filter(e=>e.tag==='a'&&e.href)
-  const inputs=elements.filter(e=>['input','textarea','select'].includes(e.tag))
-  const btns=elements.filter(e=>e.tag==='button'||e.role==='button')
+  function canvasCoords(e){
+    const c=canvasRef.current
+    const rect=c.getBoundingClientRect()
+    return{x:Math.round((e.clientX-rect.left)*(VPORT_W/rect.width)),y:Math.round((e.clientY-rect.top)*(VPORT_H/rect.height))}
+  }
+
+  function handleClick(e){
+    if(!session)return
+    const{x,y}=canvasCoords(e)
+    apiFetch(API+'/browser-control/mouse/click',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({session_id:session,x,y,button:'left'})})
+    canvasRef.current?.focus()
+  }
+
+  function handleRightClick(e){
+    e.preventDefault()
+    if(!session)return
+    const{x,y}=canvasCoords(e)
+    apiFetch(API+'/browser-control/mouse/click',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({session_id:session,x,y,button:'right'})})
+  }
+
+  function handleWheel(e){
+    e.preventDefault()
+    if(!session)return
+    apiFetch(API+'/browser-control/mouse/scroll',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({session_id:session,x:0,y:0,delta_x:Math.round(e.deltaX),delta_y:Math.round(e.deltaY)})})
+  }
+
+  const KEYS={Enter:'Enter',Backspace:'Backspace',Delete:'Delete',Escape:'Escape',Tab:'Tab',ArrowUp:'ArrowUp',ArrowDown:'ArrowDown',ArrowLeft:'ArrowLeft',ArrowRight:'ArrowRight',Home:'Home',End:'End',PageUp:'PageUp',PageDown:'PageDown',F5:'F5',F12:'F12',' ':'Space'}
+
+  function handleKeyDown(e){
+    if(!session)return
+    e.preventDefault()
+    const k=KEYS[e.key]
+    if(k){apiFetch(API+'/browser-control/keyboard/press',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({session_id:session,key:k})})}
+    else if(e.key.length===1&&!e.ctrlKey&&!e.metaKey&&!e.altKey){apiFetch(API+'/browser-control/keyboard/type',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({session_id:session,text:e.key})})}
+    else if(e.ctrlKey&&e.key.length===1){apiFetch(API+'/browser-control/keyboard/press',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({session_id:session,key:'Control+'+e.key.toUpperCase()})})}
+  }
+
+  async function qKey(key){if(session)await apiFetch(API+'/browser-control/keyboard/press',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({session_id:session,key})})}
+  async function qScroll(d){if(session)await apiFetch(API+'/browser-control/mouse/scroll',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({session_id:session,x:0,y:0,delta_x:0,delta_y:d==='down'?400:-400})})}
+  async function sendType(){if(session&&typeText){await apiFetch(API+'/browser-control/keyboard/type',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({session_id:session,text:typeText})});setTypeText('')}}
+
+  async function clickEl(el){
+    apiFetch(API+'/browser-control/mouse/click',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({session_id:session,x:el.x+Math.round((el.w||20)/2),y:el.y+Math.round((el.h||20)/2),button:'left'})})
+  }
 
   const statusColor=status==='ready'?'#4ed68b':status==='navigating'||status==='starting'?'#ffb84d':'#555'
+  const links=(elements||[]).filter(e=>e.tag==='a'&&e.href)
+  const inputs=(elements||[]).filter(e=>['input','textarea','select'].includes(e.tag))
+  const btns=(elements||[]).filter(e=>e.tag==='button'||e.role==='button')
 
-  return <div style={{height:'calc(100vh - 78px)',display:'flex',flexDirection:'column',overflow:'hidden'}}>
-
-    {/* ── Address bar ── */}
-    <div style={{padding:'10px 16px',borderBottom:'1px solid var(--line)',background:'var(--bg)',flexShrink:0}}>
-      <form onSubmit={go} style={{display:'flex',gap:8,alignItems:'center'}}>
-        <Globe2 size={15} style={{opacity:0.4,flexShrink:0}}/>
-        <input value={url} onChange={e=>setUrl(e.target.value)}
-          style={{flex:1,background:'#15131c',border:'1px solid #302b38',borderRadius:8,padding:'7px 12px',color:'var(--text)',fontSize:13,outline:'none'}}
-          placeholder="Enter URL…"/>
+  return <div style={{height:'calc(100vh - 78px)',display:'flex',flexDirection:'column',overflow:'hidden',background:'var(--bg)'}}>
+    <div style={{padding:'8px 14px',borderBottom:'1px solid var(--line)',flexShrink:0}}>
+      <form onSubmit={navigate} style={{display:'flex',gap:7,alignItems:'center',marginBottom:session?6:0}}>
+        <Globe2 size={14} style={{opacity:.4,flexShrink:0}}/>
+        <input value={url} onChange={e=>setUrl(e.target.value)} style={{flex:1,background:'#15131c',border:'1px solid #302b38',borderRadius:7,padding:'6px 11px',color:'var(--text)',fontSize:13,outline:'none'}} placeholder="https://…"/>
         {!session
-          ? <button type="button" onClick={startSession} disabled={busy}
-              style={{padding:'7px 16px',whiteSpace:'nowrap'}}>{busy?'Starting…':'🚀 Launch'}</button>
-          : <>
-              <button disabled={busy||!session} style={{padding:'7px 14px'}}>{busy?'…':'Go'}</button>
-              <button type="button" title="Refresh screenshot" onClick={()=>snap()} disabled={!session||busy}
-                style={{padding:'7px 10px',background:'#15131c',border:'1px solid #302b38'}}>📷</button>
-              <button type="button" title="Refresh DOM state" onClick={refreshState} disabled={!session||busy}
-                style={{padding:'7px 10px',background:'#15131c',border:'1px solid #302b38'}}>↻</button>
-              <label title="Auto screenshot every 3s" style={{display:'flex',alignItems:'center',gap:5,fontSize:12,opacity:0.6,cursor:'pointer',whiteSpace:'nowrap'}}>
-                <input type="checkbox" checked={autoRefresh} onChange={e=>setAutoRefresh(e.target.checked)}/>Live
-              </label>
-              <button type="button" onClick={closeSession}
-                style={{padding:'7px 10px',background:'transparent',border:'1px solid #5a2020',color:'#ff6b6b'}}>✕</button>
-            </>
+          ?<button type="button" onClick={launchSession} disabled={busy} style={{padding:'6px 16px',whiteSpace:'nowrap'}}>{busy?'Starting…':'🚀 Launch'}</button>
+          :<>
+            <button disabled={status==='navigating'} style={{padding:'6px 14px'}}>{status==='navigating'?'…':'Go'}</button>
+            <button type="button" onClick={refreshDOM} title="Refresh DOM" style={{padding:'6px 9px',background:'#15131c',border:'1px solid #302b38'}}>⟳</button>
+            <button type="button" onClick={closeSession} style={{padding:'6px 9px',background:'transparent',border:'1px solid #5a2020',color:'#ff6b6b'}}>✕</button>
+          </>
         }
-        {session&&<span style={{fontSize:11,opacity:0.5,whiteSpace:'nowrap',display:'flex',alignItems:'center',gap:5}}>
-          <span style={{width:7,height:7,borderRadius:'50%',background:statusColor,display:'inline-block',flexShrink:0}}/>
-          {status}
-        </span>}
+        {session&&<span style={{fontSize:11,opacity:.5,display:'flex',alignItems:'center',gap:5,whiteSpace:'nowrap'}}><span style={{width:7,height:7,borderRadius:'50%',background:statusColor,display:'inline-block'}}/>{status}</span>}
       </form>
-      {err&&<div style={{marginTop:6,color:'#ff6b6b',fontSize:12}}>{err} <button onClick={()=>setErr('')} style={{background:'none',border:'none',color:'#ff6b6b',cursor:'pointer'}}>✕</button></div>}
+      {session&&<div style={{display:'flex',gap:5,alignItems:'center',flexWrap:'wrap'}}>
+        <button onClick={()=>qKey('Alt+ArrowLeft')} style={{fontSize:11,padding:'3px 8px'}}>← Back</button>
+        <button onClick={()=>qKey('Alt+ArrowRight')} style={{fontSize:11,padding:'3px 8px'}}>Forward →</button>
+        <button onClick={()=>qKey('F5')} style={{fontSize:11,padding:'3px 8px'}}>↺</button>
+        <button onClick={()=>qScroll('up')} style={{fontSize:11,padding:'3px 8px'}}>▲</button>
+        <button onClick={()=>qScroll('down')} style={{fontSize:11,padding:'3px 8px'}}>▼</button>
+        <button onClick={()=>qKey('Escape')} style={{fontSize:11,padding:'3px 8px'}}>Esc</button>
+        <button onClick={()=>qKey('Tab')} style={{fontSize:11,padding:'3px 8px'}}>Tab</button>
+        <button onClick={()=>qKey('Enter')} style={{fontSize:11,padding:'3px 8px'}}>↵</button>
+        <span style={{width:1,height:14,background:'var(--line)',flexShrink:0,margin:'0 2px'}}/>
+        <input value={typeText} onChange={e=>setTypeText(e.target.value)} onKeyDown={e=>{if(e.key==='Enter'){e.preventDefault();sendType()}}} placeholder="Type and Enter to send…" style={{flex:1,minWidth:140,background:'#15131c',border:'1px solid #302b38',borderRadius:6,padding:'4px 9px',color:'var(--text)',fontSize:12,outline:'none'}}/>
+        <button onClick={sendType} disabled={!typeText} style={{fontSize:11,padding:'3px 9px'}}>Send</button>
+      </div>}
+      {err&&<div style={{color:'#ff6b6b',fontSize:12,marginTop:5}}>{err}<button onClick={()=>setErr('')} style={{background:'none',border:'none',color:'#ff6b6b',cursor:'pointer',marginLeft:6}}>✕</button></div>}
     </div>
 
-    {/* ── Main area ── */}
-    {!session&&<div style={{flex:1,display:'flex',alignItems:'center',justifyContent:'center',flexDirection:'column',gap:16,opacity:0.6}}>
-      <Globe2 size={48}/>
-      <h2 style={{margin:0}}>Manual Browser Control</h2>
-      <p style={{margin:0,fontSize:14}}>Launch a Playwright session — you control every click, keystroke and scroll.</p>
-      <button onClick={startSession} disabled={busy} style={{padding:'10px 24px',fontSize:15}}>{busy?'Starting…':'🚀 Launch browser'}</button>
+    {!session&&<div style={{flex:1,display:'flex',alignItems:'center',justifyContent:'center',flexDirection:'column',gap:14,opacity:.6}}>
+      <Globe2 size={52}/>
+      <h2 style={{margin:0}}>Live Browser Control</h2>
+      <p style={{margin:0,fontSize:14,textAlign:'center',maxWidth:400}}>Launch a Playwright session. See the page live — click, scroll, type directly. No screenshots.</p>
+      <button onClick={launchSession} disabled={busy} style={{padding:'10px 28px',fontSize:15}}>{busy?'Starting…':'🚀 Launch browser'}</button>
     </div>}
 
-    {session&&<div style={{flex:1,display:'grid',gridTemplateColumns:'200px 1fr',overflow:'hidden'}}>
-
-      {/* ── Left toolbar ── */}
-      <div style={{borderRight:'1px solid var(--line)',overflow:'auto',padding:12,background:'#0d0b14',display:'flex',flexDirection:'column',gap:12}}>
-
-        <div>
-          <div style={{fontSize:10,opacity:0.4,letterSpacing:'.08em',marginBottom:8}}>NAVIGATE</div>
-          <button onClick={()=>direct('press',{selector:'body',key:'Alt+ArrowLeft'})} title="Back" style={{width:'100%',marginBottom:4,textAlign:'left'}}>← Back</button>
-          <button onClick={()=>direct('press',{selector:'body',key:'Alt+ArrowRight'})} title="Forward" style={{width:'100%',marginBottom:4,textAlign:'left'}}>→ Forward</button>
-          <button onClick={()=>direct('press',{selector:'body',key:'F5'})} title="Reload" style={{width:'100%',textAlign:'left'}}>↺ Reload</button>
-        </div>
-
-        <div>
-          <div style={{fontSize:10,opacity:0.4,letterSpacing:'.08em',marginBottom:8}}>SCROLL</div>
-          <button onClick={()=>scroll('up')} style={{width:'100%',marginBottom:4}}>▲ Scroll up</button>
-          <button onClick={()=>scroll('down')} style={{width:'100%'}}>▼ Scroll down</button>
-        </div>
-
-        <div>
-          <div style={{fontSize:10,opacity:0.4,letterSpacing:'.08em',marginBottom:8}}>TYPE & PRESS</div>
-          <input value={selInput} onChange={e=>setSelInput(e.target.value)}
-            placeholder="CSS selector"
-            style={{width:'100%',background:'#15131c',border:'1px solid #302b38',borderRadius:6,padding:'5px 8px',color:'var(--text)',fontSize:12,outline:'none',boxSizing:'border-box',marginBottom:6}}/>
-          <input value={typeText} onChange={e=>setTypeText(e.target.value)}
-            placeholder="Text to type"
-            style={{width:'100%',background:'#15131c',border:'1px solid #302b38',borderRadius:6,padding:'5px 8px',color:'var(--text)',fontSize:12,outline:'none',boxSizing:'border-box',marginBottom:6}}
-            onKeyDown={e=>{if(e.key==='Enter'&&selInput&&typeText){e.preventDefault();direct('type',{selector:selInput,text:typeText})}}}/>
-          <button disabled={!selInput||!typeText||busy} onClick={()=>direct('type',{selector:selInput,text:typeText})}
-            style={{width:'100%',marginBottom:4}}>⌨ Type</button>
-          <button disabled={!selInput||busy} onClick={()=>direct('click',{selector:selInput})}
-            style={{width:'100%',marginBottom:4}}>🖱 Click</button>
-          <button disabled={!selInput||busy} onClick={()=>direct('press',{selector:selInput,key:'Enter'})}
-            style={{width:'100%'}}>↵ Enter</button>
-        </div>
-
-        <div>
-          <div style={{fontSize:10,opacity:0.4,letterSpacing:'.08em',marginBottom:8}}>KEYBOARD</div>
-          {[['Tab','Tab'],['Escape','Esc'],['ArrowDown','↓'],['ArrowUp','↑'],['Space','Space']].map(([k,l])=>
-            <button key={k} onClick={()=>direct('press',{selector:selInput||'body',key:k})}
-              style={{width:'100%',marginBottom:3,fontSize:11}}>{l}</button>
-          )}
-        </div>
-
-        <div style={{marginTop:'auto',fontSize:10,opacity:0.3,lineHeight:1.5}}>
-          Direct mode — actions execute immediately. You are in full control.
-        </div>
+    {session&&<div style={{flex:1,display:'flex',overflow:'hidden'}}>
+      <div style={{flex:1,overflow:'hidden',background:'#000',display:'flex',alignItems:'center',justifyContent:'center',position:'relative'}}>
+        <canvas ref={canvasRef} width={VPORT_W} height={VPORT_H} tabIndex={0}
+          onClick={handleClick} onContextMenu={handleRightClick} onWheel={handleWheel}
+          onKeyDown={handleKeyDown} onFocus={()=>setFocused(true)} onBlur={()=>setFocused(false)}
+          style={{maxWidth:'100%',maxHeight:'100%',cursor:'crosshair',outline:focused?'2px solid #6b48b8':'none',display:'block'}}/>
+        {status==='navigating'&&<div style={{position:'absolute',top:10,left:'50%',transform:'translateX(-50%)',background:'rgba(0,0,0,.75)',color:'#ffb84d',padding:'5px 16px',borderRadius:20,fontSize:13}}>Loading…</div>}
+        {!focused&&<div style={{position:'absolute',bottom:8,left:'50%',transform:'translateX(-50%)',background:'rgba(0,0,0,.55)',color:'#fff',padding:'3px 12px',borderRadius:20,fontSize:10,pointerEvents:'none',opacity:.65}}>Click to focus keyboard</div>}
       </div>
 
-      {/* ── Right panel ── */}
-      <div style={{display:'flex',flexDirection:'column',overflow:'hidden'}}>
-
-        {/* Tabs */}
+      <div style={{width:200,borderLeft:'1px solid var(--line)',display:'flex',flexDirection:'column',background:'#0d0b14',flexShrink:0}}>
         <div style={{display:'flex',borderBottom:'1px solid var(--line)',flexShrink:0}}>
-          {[['screen',`Screenshot${busy?' ⟳':''}`],['elements',`Elements (${elements.length})`],['links',`Links (${links.length})`],['inputs',`Inputs (${inputs.length})`],['btns',`Buttons (${btns.length})`],['text','Text']].map(([id,label])=>
-            <button key={id} onClick={()=>setTab(id)}
-              style={{padding:'8px 14px',background:'none',border:'none',borderBottom:tab===id?'2px solid var(--accent)':'2px solid transparent',cursor:'pointer',fontSize:12,color:'var(--text)',opacity:tab===id?1:0.45,whiteSpace:'nowrap'}}>
-              {label}
-            </button>
+          {[['el','All'],['lk','Links'],['in','Inputs'],['bt','Btns']].map(([id,label])=>
+            <button key={id} onClick={()=>setTab(id)} style={{flex:1,padding:'7px 2px',background:'none',border:'none',borderBottom:tab===id?'2px solid var(--accent)':'2px solid transparent',cursor:'pointer',fontSize:10,color:'var(--text)',opacity:tab===id?1:.4}}>{label}</button>
           )}
         </div>
-
-        {/* Screenshot */}
-        {tab==='screen'&&<div style={{flex:1,overflow:'auto',padding:12}}>
-          {shot
-            ? <img src={shot} alt="Browser view" style={{width:'100%',borderRadius:8,border:'1px solid var(--line)',cursor:'default'}}/>
-            : <div style={{padding:48,textAlign:'center',opacity:0.3}}><Globe2 size={40}/><p>Navigate to a page to see a screenshot</p></div>}
-          {page&&<div style={{marginTop:8,fontSize:12,opacity:0.5,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{page.url} {page.status&&`· HTTP ${page.status}`}</div>}
-        </div>}
-
-        {/* Elements — clickable */}
-        {tab==='elements'&&<div style={{flex:1,overflow:'auto'}}>
-          {elements.length===0&&<div style={{padding:32,textAlign:'center',opacity:0.35}}>Navigate to a page first</div>}
-          {elements.map(el=><div key={el.ref}
-            style={{display:'flex',alignItems:'center',gap:8,padding:'6px 12px',borderBottom:'1px solid var(--line)',fontSize:12}}>
-            <code style={{fontSize:10,opacity:0.4,width:55,flexShrink:0,overflow:'hidden',textOverflow:'ellipsis'}}>{el.tag}{el.type?'.'+el.type:''}</code>
-            <span style={{flex:1,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap',opacity:el.disabled?.5:1}}>{el.name||el.value||<em style={{opacity:.4}}>—</em>}</span>
-            {el.disabled&&<span style={{fontSize:10,opacity:.4}}>off</span>}
-            <button disabled={el.disabled||busy}
-              onClick={()=>{setSelInput('@'+el.ref);direct('click',{selector:'@'+el.ref})}}
-              style={{fontSize:11,padding:'3px 10px'}}>Click</button>
-            <button onClick={()=>setSelInput('@'+el.ref)}
-              style={{fontSize:11,padding:'3px 8px',background:'transparent',border:'1px solid var(--line)'}}>Sel</button>
+        <div style={{flex:1,overflow:'auto'}}>
+          {tab==='el'&&(elements||[]).slice(0,100).map(el=><div key={el.ref} style={{padding:'5px 8px',borderBottom:'1px solid var(--line)',fontSize:11,display:'flex',alignItems:'center',gap:5}}>
+            <code style={{fontSize:9,opacity:.35,flexShrink:0,width:28}}>{el.tag}</code>
+            <span style={{flex:1,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap',opacity:el.disabled?.4:1}}>{el.name||el.value||<em style={{opacity:.35}}>—</em>}</span>
+            <button disabled={el.disabled} onClick={()=>clickEl(el)} style={{fontSize:9,padding:'1px 6px',flexShrink:0}}>↖</button>
           </div>)}
-        </div>}
-
-        {/* Links */}
-        {tab==='links'&&<div style={{flex:1,overflow:'auto'}}>
-          {links.length===0&&<div style={{padding:32,textAlign:'center',opacity:0.35}}>No links found</div>}
-          {links.map(el=><div key={el.ref}
-            style={{display:'flex',alignItems:'center',gap:8,padding:'6px 12px',borderBottom:'1px solid var(--line)',fontSize:12}}>
-            <Globe2 size={12} style={{opacity:.4,flexShrink:0}}/>
+          {tab==='lk'&&links.map(el=><div key={el.ref} style={{padding:'5px 8px',borderBottom:'1px solid var(--line)',fontSize:11,display:'flex',alignItems:'center',gap:5}}>
             <span style={{flex:1,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{el.name||el.href}</span>
-            <span style={{fontSize:10,opacity:.35,maxWidth:140,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{el.href}</span>
-            <button onClick={()=>setUrl(el.href)} disabled={busy}
-              style={{fontSize:11,padding:'3px 10px'}}>Go</button>
-            <button onClick={()=>{setSelInput('@'+el.ref);direct('click',{selector:'@'+el.ref})}} disabled={busy}
-              style={{fontSize:11,padding:'3px 10px'}}>Click</button>
+            <button onClick={()=>setUrl(el.href)} style={{fontSize:9,padding:'1px 6px',flexShrink:0}}>Go</button>
+            <button onClick={()=>clickEl(el)} style={{fontSize:9,padding:'1px 6px',flexShrink:0}}>↖</button>
           </div>)}
-        </div>}
-
-        {/* Inputs */}
-        {tab==='inputs'&&<div style={{flex:1,overflow:'auto'}}>
-          {inputs.length===0&&<div style={{padding:32,textAlign:'center',opacity:0.35}}>No input fields found</div>}
-          {inputs.map(el=><div key={el.ref}
-            style={{display:'flex',alignItems:'center',gap:8,padding:'8px 12px',borderBottom:'1px solid var(--line)',fontSize:12}}>
-            <code style={{fontSize:10,opacity:.4,width:80,flexShrink:0}}>{el.tag}{el.type?'.'+el.type:''}</code>
-            <span style={{flex:1,opacity:.7}}>{el.name||el.value||<em style={{opacity:.4}}>unnamed</em>}</span>
-            <button onClick={()=>setSelInput('@'+el.ref)}
-              style={{fontSize:11,padding:'3px 10px'}}>Select</button>
-            <button onClick={()=>{setSelInput('@'+el.ref);direct('click',{selector:'@'+el.ref})}} disabled={busy}
-              style={{fontSize:11,padding:'3px 10px'}}>Focus</button>
+          {tab==='in'&&inputs.map(el=><div key={el.ref} style={{padding:'5px 8px',borderBottom:'1px solid var(--line)',fontSize:11,display:'flex',alignItems:'center',gap:5}}>
+            <code style={{fontSize:9,opacity:.35,flexShrink:0}}>{el.type||el.tag}</code>
+            <span style={{flex:1,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{el.name||<em style={{opacity:.35}}>—</em>}</span>
+            <button onClick={()=>clickEl(el)} style={{fontSize:9,padding:'1px 6px',flexShrink:0}}>Focus</button>
           </div>)}
-        </div>}
-
-        {/* Buttons */}
-        {tab==='btns'&&<div style={{flex:1,overflow:'auto'}}>
-          {btns.length===0&&<div style={{padding:32,textAlign:'center',opacity:0.35}}>No buttons found</div>}
-          {btns.map(el=><div key={el.ref}
-            style={{display:'flex',alignItems:'center',gap:8,padding:'6px 12px',borderBottom:'1px solid var(--line)',fontSize:12}}>
-            <span style={{flex:1,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap',opacity:el.disabled?.4:1}}>{el.name||<em style={{opacity:.4}}>unnamed</em>}</span>
-            {el.disabled&&<span style={{fontSize:10,opacity:.4}}>disabled</span>}
-            <button disabled={el.disabled||busy}
-              onClick={()=>{setSelInput('@'+el.ref);direct('click',{selector:'@'+el.ref})}}
-              style={{fontSize:11,padding:'3px 10px'}}>Click</button>
+          {tab==='bt'&&btns.map(el=><div key={el.ref} style={{padding:'5px 8px',borderBottom:'1px solid var(--line)',fontSize:11,display:'flex',alignItems:'center',gap:5}}>
+            <span style={{flex:1,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap',opacity:el.disabled?.4:1}}>{el.name||<em style={{opacity:.35}}>—</em>}</span>
+            <button disabled={el.disabled} onClick={()=>clickEl(el)} style={{fontSize:9,padding:'1px 6px',flexShrink:0}}>↖</button>
           </div>)}
-        </div>}
-
-        {/* Text */}
-        {tab==='text'&&<div style={{flex:1,overflow:'auto',padding:16}}>
-          <pre style={{whiteSpace:'pre-wrap',fontSize:12,opacity:.75,lineHeight:1.7,margin:0}}>{page?.text||'Navigate to a page first'}</pre>
-        </div>}
-
+          {((tab==='el'&&elements.length===0)||(tab==='lk'&&links.length===0)||(tab==='in'&&inputs.length===0)||(tab==='bt'&&btns.length===0))&&<div style={{padding:16,textAlign:'center',opacity:.3,fontSize:11}}>Navigate first</div>}
+        </div>
+        {pageInfo&&<div style={{padding:'7px 8px',borderTop:'1px solid var(--line)',fontSize:10,opacity:.35,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{pageInfo.title}</div>}
       </div>
     </div>}
   </div>
 }
+
 function CalendarWorkspace(){const[events,setEvents]=useState([]),[title,setTitle]=useState(''),[start,setStart]=useState('');const load=()=>apiFetch(API+'/calendar').then(r=>r.json()).then(d=>setEvents(d.events||[]));useEffect(load,[]);async function add(e){e.preventDefault();if(!title||!start)return;await apiFetch(API+'/calendar',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({title,start_at:new Date(start).toISOString(),reminder_minutes:15})});setTitle('');setStart('');load()}async function remove(id){await apiFetch(`${API}/calendar/${id}`,{method:'DELETE'});load()}const groups=events.reduce((a,e)=>{let d=e.start_at.slice(0,10);(a[d]??=[]).push(e);return a},{});return <div className="calendar"><div className="libraryHead"><div><small>TIME INTELLIGENCE</small><h1>Your study calendar</h1><p>Schedule focused work and keep reminders synchronized across devices.</p></div></div><form className="eventAdd" onSubmit={add}><input value={title} onChange={e=>setTitle(e.target.value)} placeholder="What will you study?"/><input type="datetime-local" value={start} onChange={e=>setStart(e.target.value)}/><button>Schedule</button></form><div className="agenda">{Object.entries(groups).map(([day,list])=><section key={day}><div className="day"><b>{new Date(day+'T00:00:00').toLocaleDateString(undefined,{weekday:'short'})}</b><strong>{new Date(day+'T00:00:00').getDate()}</strong><small>{new Date(day+'T00:00:00').toLocaleDateString(undefined,{month:'short'})}</small></div><div>{list.map(e=><article key={e.id}><time>{new Date(e.start_at).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'})}</time><i/><span><b>{e.title}</b><small>{e.subject||'Study session'} · reminder {e.reminder_minutes} min before</small></span><button onClick={()=>remove(e.id)}>×</button></article>)}</div></section>)}{!events.length&&<div className="drop"><CalendarDays/><h3>No sessions scheduled</h3><p>Add your first study block above.</p></div>}</div></div>}
 function ResearchWorkspace(){const[sources,setSources]=useState([]),[url,setUrl]=useState(''),[question,setQuestion]=useState(''),[result,setResult]=useState(null),[busy,setBusy]=useState(false),[error,setError]=useState('');const load=()=>apiFetch(API+'/research/sources').then(r=>r.json()).then(d=>setSources(d.sources||[]));useEffect(load,[]);async function save(e){e.preventDefault();if(!url)return;setBusy(true);setError('');try{let r=await apiFetch(API+'/research/sources',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({url})});let d=await r.json();if(!r.ok)throw new Error(d.detail||'Could not save source');setUrl('');load()}catch(x){setError(x.message)}setBusy(false)}async function ask(e){e.preventDefault();if(!question)return;setBusy(true);let r=await apiFetch(API+'/research/web-query',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({question})});setResult(await r.json());setBusy(false)}return <div className="research"><div className="libraryHead"><div><small>EVIDENCE WORKSPACE</small><h1>Research you can verify</h1><p>Save readable web sources, ask across them, and trace every answer to evidence.</p></div></div><div className="researchGrid"><section><h3><Globe2/> Add a source</h3><form className="sourceForm" onSubmit={save}><input value={url} onChange={e=>setUrl(e.target.value)} placeholder="https://cbseacademic.nic.in/…"/><button disabled={busy}>Read & save</button></form>{error&&<div className="error">{error}</div>}<h3 className="savedTitle">Saved sources <span>{sources.length}</span></h3><div className="sources">{sources.map(s=><article key={s.id}><Globe2/><div><b>{s.title}</b><small>{s.url}</small><p>{s.excerpt}</p></div></article>)}{!sources.length&&<div className="noSources">Add a public webpage to create your evidence collection.</div>}</div></section><section className="askPanel"><h3><Sparkles/> Ask your collection</h3><form onSubmit={ask}><textarea value={question} onChange={e=>setQuestion(e.target.value)} placeholder="What do these sources say about…"/><button disabled={busy}><Send/> {busy?'Researching…':'Ask with citations'}</button></form>{result&&<div className="answer"><small>{result.provider}</small><p>{result.answer}</p>{result.sources?.map((s,i)=><blockquote key={i}><b>[{i+1}] {s.title}</b>{s.excerpt}</blockquote>)}</div>}</section></div></div>}
 function TaskBoard(){const[tasks,setTasks]=useState([]),[title,setTitle]=useState('');const load=()=>apiFetch(API+'/tasks').then(r=>r.json()).then(d=>setTasks(d.tasks||[]));useEffect(load,[]);async function add(e){e.preventDefault();if(!title.trim())return;await apiFetch(API+'/tasks',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({title,priority:2})});setTitle('');load()}async function move(id,status){await apiFetch(`${API}/tasks/${id}`,{method:'PATCH',headers:{'content-type':'application/json'},body:JSON.stringify({status})});load()}return <div className="tasks"><div className="libraryHead"><div><small>ACTION SYSTEM</small><h1>Plans that move</h1><p>Capture work, focus on what matters, and let TILLU track completion.</p></div></div><form className="taskAdd" onSubmit={add}><input value={title} onChange={e=>setTitle(e.target.value)} placeholder="Add a task, chapter or goal…"/><button>Add task</button></form><div className="kanban">{[['todo','To do'],['doing','In progress'],['done','Completed']].map(([status,label])=><section key={status}><header><b>{label}</b><span>{tasks.filter(t=>t.status===status).length}</span></header>{tasks.filter(t=>t.status===status).map(t=><article key={t.id}><i className={'p'+t.priority}/><b>{t.title}</b><small>{t.subject||'Personal'}{t.due_at?' · '+t.due_at:''}</small><div>{status!=='todo'&&<button onClick={()=>move(t.id,'todo')}>←</button>}{status!=='done'&&<button onClick={()=>move(t.id,status==='todo'?'doing':'done')}>→</button>}<button title="Delete task" onClick={async()=>{await apiFetch(`${API}/tasks/${t.id}`,{method:'DELETE'});load()}}>×</button></div></article>)}{!tasks.some(t=>t.status===status)&&<p className="noTasks">Nothing here</p>}</section>)}</div></div>}

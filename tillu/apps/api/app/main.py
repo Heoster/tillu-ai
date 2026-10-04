@@ -1285,6 +1285,43 @@ async def browser_scroll_page(body:BrowserNavigate,user:User=Depends(current_use
     except KeyError as exc:raise HTTPException(404,str(exc))
     except Exception as exc:raise HTTPException(400,str(exc))
 
+class BrowserMouse(BaseModel):session_id:str;x:int;y:int;button:str='left'
+class BrowserScroll(BaseModel):session_id:str;x:int=0;y:int=0;delta_x:int=0;delta_y:int=0
+class BrowserKey(BaseModel):session_id:str;key:str
+class BrowserTypeText(BaseModel):session_id:str;text:str
+
+@app.post('/api/browser-control/mouse/click')
+async def browser_mouse_click(body:BrowserMouse,user:User=Depends(current_user)):
+    try:await (runtime_rpc('browser_mouse_click',body.model_dump(),user.id) if settings.service_role=='brain' and settings.runtime_internal_url else browser_runtime.mouse_click(body.session_id,user.id,body.x,body.y,body.button));return{'ok':True}
+    except KeyError as exc:raise HTTPException(404,str(exc))
+    except Exception as exc:raise HTTPException(400,str(exc))
+
+@app.post('/api/browser-control/mouse/scroll')
+async def browser_mouse_scroll(body:BrowserScroll,user:User=Depends(current_user)):
+    try:await (runtime_rpc('browser_mouse_scroll',body.model_dump(),user.id) if settings.service_role=='brain' and settings.runtime_internal_url else browser_runtime.mouse_scroll(body.session_id,user.id,body.x,body.y,body.delta_x,body.delta_y));return{'ok':True}
+    except KeyError as exc:raise HTTPException(404,str(exc))
+    except Exception as exc:raise HTTPException(400,str(exc))
+
+@app.post('/api/browser-control/keyboard/press')
+async def browser_keyboard_press(body:BrowserKey,user:User=Depends(current_user)):
+    try:await (runtime_rpc('browser_keyboard_press',body.model_dump(),user.id) if settings.service_role=='brain' and settings.runtime_internal_url else browser_runtime.keyboard_press(body.session_id,user.id,body.key));return{'ok':True}
+    except KeyError as exc:raise HTTPException(404,str(exc))
+    except Exception as exc:raise HTTPException(400,str(exc))
+
+@app.post('/api/browser-control/keyboard/type')
+async def browser_keyboard_type(body:BrowserTypeText,user:User=Depends(current_user)):
+    try:await (runtime_rpc('browser_keyboard_type',body.model_dump(),user.id) if settings.service_role=='brain' and settings.runtime_internal_url else browser_runtime.keyboard_type(body.session_id,user.id,body.text));return{'ok':True}
+    except KeyError as exc:raise HTTPException(404,str(exc))
+    except Exception as exc:raise HTTPException(400,str(exc))
+
+@app.get('/api/browser-control/sessions/{session_id}/stream')
+async def browser_stream(session_id:str,fps:int=10,user:User=Depends(current_user)):
+    from starlette.responses import StreamingResponse
+    async def gen():
+        async for frame in browser_runtime.stream_mjpeg(session_id,user.id,fps):
+            yield frame
+    return StreamingResponse(gen(),media_type='multipart/x-mixed-replace; boundary=tilluframe',headers={'Cache-Control':'no-cache','X-Accel-Buffering':'no'})
+
 @app.get('/api/mail/messages')
 async def mail_messages(q:str='',limit:int=20,user:User=Depends(current_user)):
     try:return {'messages':await gmail.list(q,min(limit,50))}
