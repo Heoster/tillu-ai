@@ -1261,6 +1261,30 @@ def browser_action_propose(body:BrowserAction,user:User=Depends(current_user)):
     if not (settings.service_role=='brain' and settings.runtime_internal_url):browser_runtime.get(body.session_id,user.id)
     pid=str(uuid4());row={'id':pid,'user_id':user.id,'kind':'browser_action','payload':body.model_dump(exclude_none=True),'status':'pending','created_at':now(),'expires_at':datetime.fromtimestamp(datetime.now(timezone.utc).timestamp()+600,timezone.utc).isoformat()};create_action_proposal(row);return {'proposal':row,'approval_required':True}
 
+@app.post('/api/browser-control/actions/direct')
+async def browser_action_direct(body:BrowserAction,user:User=Depends(current_user)):
+    """Execute a browser action immediately without approval gate. Owner-only direct control."""
+    try:
+        result=await runtime_rpc('browser_action',{**body.model_dump(exclude_none=True),'user_id':user.id},user.id) if settings.service_role=='brain' and settings.runtime_internal_url else await browser_runtime.action(body.session_id,user.id,body.action,body.model_dump())
+        return result
+    except KeyError as exc:raise HTTPException(404,str(exc))
+    except Exception as exc:raise HTTPException(400,str(exc))
+
+@app.post('/api/browser-control/scroll-page')
+async def browser_scroll_page(body:BrowserNavigate,user:User=Depends(current_user)):
+    """Scroll the page up or down. Pass url field as 'up' or 'down'."""
+    try:
+        direction=body.url
+        js='window.scrollBy(0, window.innerHeight*0.8)' if direction=='down' else 'window.scrollBy(0, -window.innerHeight*0.8)'
+        if settings.service_role=='brain' and settings.runtime_internal_url:
+            return await runtime_rpc('browser_eval',{'session_id':body.session_id,'js':js},user.id)
+        p=browser_runtime.get(body.session_id,user.id)['page']
+        await p.evaluate(js)
+        await p.wait_for_timeout(300)
+        return await browser_runtime.state(body.session_id,user.id)
+    except KeyError as exc:raise HTTPException(404,str(exc))
+    except Exception as exc:raise HTTPException(400,str(exc))
+
 @app.get('/api/mail/messages')
 async def mail_messages(q:str='',limit:int=20,user:User=Depends(current_user)):
     try:return {'messages':await gmail.list(q,min(limit,50))}

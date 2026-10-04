@@ -70,231 +70,270 @@ function SettingsPage({theme,setTheme}){const[prefs,setPrefs]=useState(null),[ac
 function PageTitle({eyebrow,title,copy,action}){return <div className="pageTitle"><div><small>{eyebrow}</small><h1>{title}</h1><p>{copy}</p></div>{action&&<button>{action}</button>}</div>}
 function Metric({value,label}){return <article><b>{value}</b><small>{label}</small></article>}
 function BrowserWorkspace({embedded}){
-  const[url,setUrl]=useState('https://example.com')
+  const[url,setUrl]=useState('https://google.com')
   const[session,setSession]=useState('')
   const[page,setPage]=useState(null)
   const[shot,setShot]=useState('')
   const[busy,setBusy]=useState(false)
-  const[error,setError]=useState('')
+  const[err,setErr]=useState('')
   const[status,setStatus]=useState('idle')
-  const[selector,setSelector]=useState('')
+  const[tab,setTab]=useState('screen')
   const[typeText,setTypeText]=useState('')
-  const[pressKey,setPressKey]=useState('Enter')
-  const[proposal,setProposal]=useState(null)
-  const[activeTab,setActiveTab]=useState('screenshot')
+  const[selInput,setSelInput]=useState('')
+  const[autoRefresh,setAutoRefresh]=useState(false)
+  const timerRef=useRef(null)
+
+  useEffect(()=>{
+    if(autoRefresh&&session){timerRef.current=setInterval(()=>snap(),3000)}
+    else clearInterval(timerRef.current)
+    return()=>clearInterval(timerRef.current)
+  },[autoRefresh,session])
 
   async function startSession(){
-    setBusy(true);setError('');setStatus('starting')
+    setBusy(true);setErr('');setStatus('starting')
     const r=await apiFetch(API+'/browser-control/sessions',{method:'POST'})
     const d=await r.json()
     if(r.ok){setSession(d.session_id);setStatus('ready')}
-    else{setError(d.detail||'Failed to start browser');setStatus('idle')}
+    else{setErr(d.detail||'Failed');setStatus('idle')}
     setBusy(false)
   }
 
-  async function navigate(e){
-    e.preventDefault()
-    if(!session){setError('Start a browser session first');return}
+  async function go(e){
+    if(e)e.preventDefault()
+    if(!session)return
     const target=/^https?:\/\//.test(url)?url:'https://'+url
-    setBusy(true);setError('');setStatus('navigating')
+    setBusy(true);setErr('');setStatus('navigating')
     const r=await apiFetch(API+'/browser-control/navigate',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({session_id:session,url:target})})
     const d=await r.json()
-    if(r.ok){setPage(d);setUrl(d.url);setStatus('ready');await capture()}
-    else{setError(d.detail||'Navigation failed');setStatus('ready')}
+    if(r.ok){setPage(d);setUrl(d.url);await snap();setStatus('ready')}
+    else{setErr(d.detail||'Nav failed');setStatus('ready')}
     setBusy(false)
   }
 
-  async function capture(){
+  async function snap(){
     if(!session)return
     const r=await apiFetch(`${API}/browser-control/sessions/${session}/screenshot`,{method:'POST'})
-    const d=await r.json()
-    if(!r.ok){return}
+    const d=await r.json();if(!r.ok)return
     const img=await apiFetch(`${API}/browser-control/artifacts/${d.artifact}`)
     const blob=await img.blob()
     setShot(old=>{if(old)URL.revokeObjectURL(old);return URL.createObjectURL(blob)})
-    setActiveTab('screenshot')
+    setTab('screen')
   }
 
-  async function refresh(){
-    if(!session)return
-    setBusy(true)
+  async function refreshState(){
+    if(!session)return;setBusy(true)
     const r=await apiFetch(`${API}/browser-control/sessions/${session}`)
-    const d=await r.json()
-    if(r.ok){setPage(d);await capture()}
+    const d=await r.json();if(r.ok){setPage(d);await snap()}
     setBusy(false)
   }
 
-  async function proposeAction(action){
-    if(!session){setError('No active session');return}
-    const body={session_id:session,action,selector,text:typeText,key:pressKey||'Enter'}
-    const r=await apiFetch(API+'/browser-control/actions',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(body)})
+  async function direct(action,args){
+    if(!session)return;setBusy(true);setErr('')
+    const body={session_id:session,action,selector:args.selector||'body',text:args.text,key:args.key}
+    const r=await apiFetch(API+'/browser-control/actions/direct',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(body)})
     const d=await r.json()
-    if(r.ok)setProposal(d.proposal||d)
-    else setError(d.detail||'Action failed')
+    if(r.ok){setPage(d);await snap()}
+    else setErr(d.detail||'Action failed')
+    setBusy(false)
   }
 
-  async function clickElement(ref){
-    if(!session)return
-    const body={session_id:session,action:'click',selector:'@'+ref,text:'',key:'Enter'}
-    const r=await apiFetch(API+'/browser-control/actions',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(body)})
-    const d=await r.json()
-    if(r.ok)setProposal(d.proposal||d)
-    else setError(d.detail||'Click failed')
-  }
-
-  async function decide(approved){
-    const r=await apiFetch(`${API}/action-proposals/${proposal.id}/decision`,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({approved})})
-    const d=await r.json()
-    setProposal(null)
-    if(r.ok&&d.result){setPage(d.result);await capture()}
-    else if(!r.ok)setError(d.detail||'Decision failed')
+  async function scroll(dir){
+    if(!session)return;setBusy(true)
+    const r=await apiFetch(API+'/browser-control/scroll-page',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({session_id:session,url:dir})})
+    const d=await r.json();if(r.ok){setPage(d);await snap()}
+    else setErr(d.detail||'Scroll failed')
+    setBusy(false)
   }
 
   async function closeSession(){
+    clearInterval(timerRef.current)
     if(session)await apiFetch(`${API}/browser-control/sessions/${session}`,{method:'DELETE'})
     if(shot)URL.revokeObjectURL(shot)
-    setSession('');setPage(null);setShot('');setStatus('idle');setProposal(null)
+    setSession('');setPage(null);setShot('');setStatus('idle');setErr('')
   }
 
   const elements=page?.elements||[]
   const links=elements.filter(e=>e.tag==='a'&&e.href)
-  const buttons=elements.filter(e=>e.tag==='button'||(e.role==='button'))
   const inputs=elements.filter(e=>['input','textarea','select'].includes(e.tag))
+  const btns=elements.filter(e=>e.tag==='button'||e.role==='button')
 
-  return <div className="browser">
-    {/* Address bar */}
-    <div className="browserBar">
-      <form onSubmit={navigate} style={{display:'flex',gap:8,alignItems:'center',flex:1}}>
-        <Globe2 size={16} style={{flexShrink:0,opacity:0.5}}/>
-        <input value={url} onChange={e=>setUrl(e.target.value)} placeholder="Enter URL…" style={{flex:1}}/>
+  const statusColor=status==='ready'?'#4ed68b':status==='navigating'||status==='starting'?'#ffb84d':'#555'
+
+  return <div style={{height:'calc(100vh - 78px)',display:'flex',flexDirection:'column',overflow:'hidden'}}>
+
+    {/* ── Address bar ── */}
+    <div style={{padding:'10px 16px',borderBottom:'1px solid var(--line)',background:'var(--bg)',flexShrink:0}}>
+      <form onSubmit={go} style={{display:'flex',gap:8,alignItems:'center'}}>
+        <Globe2 size={15} style={{opacity:0.4,flexShrink:0}}/>
+        <input value={url} onChange={e=>setUrl(e.target.value)}
+          style={{flex:1,background:'#15131c',border:'1px solid #302b38',borderRadius:8,padding:'7px 12px',color:'var(--text)',fontSize:13,outline:'none'}}
+          placeholder="Enter URL…"/>
         {!session
-          ? <button type="button" onClick={startSession} disabled={busy} style={{whiteSpace:'nowrap'}}>{busy?'Starting…':'Launch browser'}</button>
+          ? <button type="button" onClick={startSession} disabled={busy}
+              style={{padding:'7px 16px',whiteSpace:'nowrap'}}>{busy?'Starting…':'🚀 Launch'}</button>
           : <>
-              <button disabled={busy||!session} style={{whiteSpace:'nowrap'}}>{busy?'Loading…':'Go'}</button>
-              <button type="button" disabled={!session||busy} onClick={refresh} title="Refresh page state">↻</button>
-              <button type="button" disabled={!session} onClick={capture} title="Take screenshot"><Download size={14}/></button>
-              <button type="button" onClick={closeSession} style={{color:'var(--danger,#ff6b6b)'}} title="Close session"><X size={14}/></button>
+              <button disabled={busy||!session} style={{padding:'7px 14px'}}>{busy?'…':'Go'}</button>
+              <button type="button" title="Refresh screenshot" onClick={()=>snap()} disabled={!session||busy}
+                style={{padding:'7px 10px',background:'#15131c',border:'1px solid #302b38'}}>📷</button>
+              <button type="button" title="Refresh DOM state" onClick={refreshState} disabled={!session||busy}
+                style={{padding:'7px 10px',background:'#15131c',border:'1px solid #302b38'}}>↻</button>
+              <label title="Auto screenshot every 3s" style={{display:'flex',alignItems:'center',gap:5,fontSize:12,opacity:0.6,cursor:'pointer',whiteSpace:'nowrap'}}>
+                <input type="checkbox" checked={autoRefresh} onChange={e=>setAutoRefresh(e.target.checked)}/>Live
+              </label>
+              <button type="button" onClick={closeSession}
+                style={{padding:'7px 10px',background:'transparent',border:'1px solid #5a2020',color:'#ff6b6b'}}>✕</button>
             </>
         }
+        {session&&<span style={{fontSize:11,opacity:0.5,whiteSpace:'nowrap',display:'flex',alignItems:'center',gap:5}}>
+          <span style={{width:7,height:7,borderRadius:'50%',background:statusColor,display:'inline-block',flexShrink:0}}/>
+          {status}
+        </span>}
       </form>
-      {session&&<div style={{display:'flex',alignItems:'center',gap:6,fontSize:11,opacity:0.6,marginTop:4}}>
-        <span style={{width:7,height:7,borderRadius:'50%',background:status==='ready'?'#4ed68b':status==='navigating'?'#ffb84d':'#888',display:'inline-block'}}/>
-        {status==='ready'?'Session active':status==='navigating'?'Navigating…':status==='starting'?'Launching…':'Idle'}
-        <span style={{marginLeft:4,opacity:0.5}}>{session.slice(0,8)}…</span>
-      </div>}
+      {err&&<div style={{marginTop:6,color:'#ff6b6b',fontSize:12}}>{err} <button onClick={()=>setErr('')} style={{background:'none',border:'none',color:'#ff6b6b',cursor:'pointer'}}>✕</button></div>}
     </div>
 
-    {/* Error banner */}
-    {error&&<div className="error" style={{margin:'8px 16px'}}>{error}<button onClick={()=>setError('')} style={{marginLeft:8,background:'none',border:'none',cursor:'pointer'}}>×</button></div>}
-
-    {/* Approval gate */}
-    {proposal&&<div className="browserApproval">
-      <ShieldCheck size={18}/>
-      <div><b>Approve browser action?</b><p style={{opacity:0.7,marginTop:4}}>{proposal.payload?.action} on <code>{proposal.payload?.selector}</code>{proposal.payload?.text?' → "'+proposal.payload.text+'"':''}</p></div>
-      <div style={{display:'flex',gap:8,marginLeft:'auto'}}>
-        <button onClick={()=>decide(false)} style={{background:'transparent',border:'1px solid var(--border)'}}>Reject</button>
-        <button onClick={()=>decide(true)}>Approve once</button>
-      </div>
+    {/* ── Main area ── */}
+    {!session&&<div style={{flex:1,display:'flex',alignItems:'center',justifyContent:'center',flexDirection:'column',gap:16,opacity:0.6}}>
+      <Globe2 size={48}/>
+      <h2 style={{margin:0}}>Manual Browser Control</h2>
+      <p style={{margin:0,fontSize:14}}>Launch a Playwright session — you control every click, keystroke and scroll.</p>
+      <button onClick={startSession} disabled={busy} style={{padding:'10px 24px',fontSize:15}}>{busy?'Starting…':'🚀 Launch browser'}</button>
     </div>}
 
-    <div className="browserBody controlBrowser">
-      {/* Left panel: manual controls */}
-      <aside>
-        <h3>MANUAL CONTROLS</h3>
+    {session&&<div style={{flex:1,display:'grid',gridTemplateColumns:'200px 1fr',overflow:'hidden'}}>
 
-        <section style={{marginBottom:16}}>
-          <small style={{opacity:0.5,display:'block',marginBottom:6}}>CSS SELECTOR</small>
-          <input value={selector} onChange={e=>setSelector(e.target.value)} placeholder="#id, .class, button[type=submit]" style={{width:'100%',marginBottom:6}}/>
-          <div style={{display:'flex',gap:6,flexWrap:'wrap'}}>
-            <button disabled={!selector||!session} onClick={()=>proposeAction('click')} title="Click element"><Command size={13}/> Click</button>
-            <button disabled={!selector||!session} onClick={()=>proposeAction('scroll')} title="Scroll to element">↕ Scroll</button>
-          </div>
-        </section>
+      {/* ── Left toolbar ── */}
+      <div style={{borderRight:'1px solid var(--line)',overflow:'auto',padding:12,background:'#0d0b14',display:'flex',flexDirection:'column',gap:12}}>
 
-        <section style={{marginBottom:16}}>
-          <small style={{opacity:0.5,display:'block',marginBottom:6}}>TYPE TEXT</small>
-          <input value={typeText} onChange={e=>setTypeText(e.target.value)} placeholder="Text to type…" style={{width:'100%',marginBottom:6}}/>
-          <button disabled={!selector||!typeText||!session} onClick={()=>proposeAction('type')} style={{width:'100%'}}><Type size={13}/> Type into selector</button>
-        </section>
+        <div>
+          <div style={{fontSize:10,opacity:0.4,letterSpacing:'.08em',marginBottom:8}}>NAVIGATE</div>
+          <button onClick={()=>direct('press',{selector:'body',key:'Alt+ArrowLeft'})} title="Back" style={{width:'100%',marginBottom:4,textAlign:'left'}}>← Back</button>
+          <button onClick={()=>direct('press',{selector:'body',key:'Alt+ArrowRight'})} title="Forward" style={{width:'100%',marginBottom:4,textAlign:'left'}}>→ Forward</button>
+          <button onClick={()=>direct('press',{selector:'body',key:'F5'})} title="Reload" style={{width:'100%',textAlign:'left'}}>↺ Reload</button>
+        </div>
 
-        <section style={{marginBottom:16}}>
-          <small style={{opacity:0.5,display:'block',marginBottom:6}}>PRESS KEY</small>
-          <select value={pressKey} onChange={e=>setPressKey(e.target.value)} style={{width:'100%',marginBottom:6}}>
-            {['Enter','Tab','Escape','ArrowDown','ArrowUp','ArrowLeft','ArrowRight','Backspace','Delete','Space'].map(k=><option key={k}>{k}</option>)}
-          </select>
-          <button disabled={!selector||!session} onClick={()=>proposeAction('press')} style={{width:'100%'}}><Command size={13}/> Press key</button>
-        </section>
+        <div>
+          <div style={{fontSize:10,opacity:0.4,letterSpacing:'.08em',marginBottom:8}}>SCROLL</div>
+          <button onClick={()=>scroll('up')} style={{width:'100%',marginBottom:4}}>▲ Scroll up</button>
+          <button onClick={()=>scroll('down')} style={{width:'100%'}}>▼ Scroll down</button>
+        </div>
 
-        <small style={{opacity:0.4,fontSize:10,lineHeight:1.5,display:'block'}}>All click/type/press actions go through an approval gate before executing. Never use for passwords or payment fields.</small>
-      </aside>
+        <div>
+          <div style={{fontSize:10,opacity:0.4,letterSpacing:'.08em',marginBottom:8}}>TYPE & PRESS</div>
+          <input value={selInput} onChange={e=>setSelInput(e.target.value)}
+            placeholder="CSS selector"
+            style={{width:'100%',background:'#15131c',border:'1px solid #302b38',borderRadius:6,padding:'5px 8px',color:'var(--text)',fontSize:12,outline:'none',boxSizing:'border-box',marginBottom:6}}/>
+          <input value={typeText} onChange={e=>setTypeText(e.target.value)}
+            placeholder="Text to type"
+            style={{width:'100%',background:'#15131c',border:'1px solid #302b38',borderRadius:6,padding:'5px 8px',color:'var(--text)',fontSize:12,outline:'none',boxSizing:'border-box',marginBottom:6}}
+            onKeyDown={e=>{if(e.key==='Enter'&&selInput&&typeText){e.preventDefault();direct('type',{selector:selInput,text:typeText})}}}/>
+          <button disabled={!selInput||!typeText||busy} onClick={()=>direct('type',{selector:selInput,text:typeText})}
+            style={{width:'100%',marginBottom:4}}>⌨ Type</button>
+          <button disabled={!selInput||busy} onClick={()=>direct('click',{selector:selInput})}
+            style={{width:'100%',marginBottom:4}}>🖱 Click</button>
+          <button disabled={!selInput||busy} onClick={()=>direct('press',{selector:selInput,key:'Enter'})}
+            style={{width:'100%'}}>↵ Enter</button>
+        </div>
 
-      {/* Main panel */}
-      <main style={{display:'flex',flexDirection:'column',overflow:'hidden'}}>
-        {!page&&!session&&<div className="browserEmpty"><Globe2 size={40}/><h2>Manual browser control</h2><p>Launch an isolated Playwright session. Navigate freely, click elements with approval, take screenshots, and inspect the DOM.</p><button onClick={startSession} disabled={busy}>{busy?'Starting…':'Launch browser'}</button></div>}
+        <div>
+          <div style={{fontSize:10,opacity:0.4,letterSpacing:'.08em',marginBottom:8}}>KEYBOARD</div>
+          {[['Tab','Tab'],['Escape','Esc'],['ArrowDown','↓'],['ArrowUp','↑'],['Space','Space']].map(([k,l])=>
+            <button key={k} onClick={()=>direct('press',{selector:selInput||'body',key:k})}
+              style={{width:'100%',marginBottom:3,fontSize:11}}>{l}</button>
+          )}
+        </div>
 
-        {!page&&session&&<div className="browserEmpty"><Globe2 size={40}/><h2>Session ready</h2><p>Enter a URL above and click Go to navigate.</p></div>}
+        <div style={{marginTop:'auto',fontSize:10,opacity:0.3,lineHeight:1.5}}>
+          Direct mode — actions execute immediately. You are in full control.
+        </div>
+      </div>
 
-        {page&&<>
-          {/* Tabs */}
-          <div style={{display:'flex',gap:0,borderBottom:'1px solid var(--border)',flexShrink:0}}>
-            {[['screenshot','Screenshot'],['elements','Elements ('+elements.length+')'],['links','Links ('+links.length+')'],['inputs','Inputs ('+inputs.length+')'],['text','Page text']].map(([id,label])=>
-              <button key={id} onClick={()=>setActiveTab(id)} style={{padding:'8px 14px',background:'none',border:'none',borderBottom:activeTab===id?'2px solid var(--accent)':'2px solid transparent',cursor:'pointer',fontSize:12,opacity:activeTab===id?1:0.5}}>{label}</button>
-            )}
-          </div>
+      {/* ── Right panel ── */}
+      <div style={{display:'flex',flexDirection:'column',overflow:'hidden'}}>
 
-          {/* Screenshot tab */}
-          {activeTab==='screenshot'&&<div style={{flex:1,overflow:'auto',padding:12}}>
-            {shot
-              ? <img src={shot} alt="Browser screenshot" style={{width:'100%',borderRadius:8,border:'1px solid var(--border)'}}/>
-              : <div style={{textAlign:'center',padding:40,opacity:0.4}}><Download size={32}/><p>Click ↓ to take a screenshot</p></div>}
-            <div style={{marginTop:8,display:'flex',gap:8,alignItems:'center'}}>
-              <Globe2 size={13} style={{opacity:0.5}}/>
-              <small style={{opacity:0.5,flex:1,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{page.url}</small>
-              <small style={{opacity:0.4}}>HTTP {page.status}</small>
-            </div>
-            <h3 style={{margin:'8px 0 4px'}}>{page.title}</h3>
-          </div>}
+        {/* Tabs */}
+        <div style={{display:'flex',borderBottom:'1px solid var(--line)',flexShrink:0}}>
+          {[['screen',`Screenshot${busy?' ⟳':''}`],['elements',`Elements (${elements.length})`],['links',`Links (${links.length})`],['inputs',`Inputs (${inputs.length})`],['btns',`Buttons (${btns.length})`],['text','Text']].map(([id,label])=>
+            <button key={id} onClick={()=>setTab(id)}
+              style={{padding:'8px 14px',background:'none',border:'none',borderBottom:tab===id?'2px solid var(--accent)':'2px solid transparent',cursor:'pointer',fontSize:12,color:'var(--text)',opacity:tab===id?1:0.45,whiteSpace:'nowrap'}}>
+              {label}
+            </button>
+          )}
+        </div>
 
-          {/* Elements tab — clickable interactive elements */}
-          {activeTab==='elements'&&<div style={{flex:1,overflow:'auto',padding:8}}>
-            {buttons.concat(elements.filter(e=>!['a','button','input','textarea','select'].includes(e.tag))).slice(0,80).map(el=><div key={el.ref} style={{display:'flex',alignItems:'center',gap:8,padding:'6px 8px',borderBottom:'1px solid var(--border)',fontSize:12}}>
-              <code style={{fontSize:10,opacity:0.5,width:40,flexShrink:0}}>{el.tag}</code>
-              <span style={{flex:1,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{el.name||el.value||<em style={{opacity:0.4}}>unnamed</em>}</span>
-              {el.disabled&&<small style={{opacity:0.4}}>disabled</small>}
-              <button onClick={()=>{setSelector('@'+el.ref);clickElement(el.ref)}} disabled={el.disabled} style={{fontSize:11,padding:'2px 8px'}}>Click</button>
-              <button onClick={()=>setSelector('@'+el.ref)} style={{fontSize:11,padding:'2px 8px',background:'transparent',border:'1px solid var(--border)'}}>Select</button>
-            </div>)}
-            {elements.length===0&&<div style={{padding:24,textAlign:'center',opacity:0.4}}>No interactive elements found. Navigate to a page first.</div>}
-          </div>}
+        {/* Screenshot */}
+        {tab==='screen'&&<div style={{flex:1,overflow:'auto',padding:12}}>
+          {shot
+            ? <img src={shot} alt="Browser view" style={{width:'100%',borderRadius:8,border:'1px solid var(--line)',cursor:'default'}}/>
+            : <div style={{padding:48,textAlign:'center',opacity:0.3}}><Globe2 size={40}/><p>Navigate to a page to see a screenshot</p></div>}
+          {page&&<div style={{marginTop:8,fontSize:12,opacity:0.5,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{page.url} {page.status&&`· HTTP ${page.status}`}</div>}
+        </div>}
 
-          {/* Links tab */}
-          {activeTab==='links'&&<div style={{flex:1,overflow:'auto',padding:8}}>
-            {links.map(el=><div key={el.ref} style={{display:'flex',alignItems:'center',gap:8,padding:'6px 8px',borderBottom:'1px solid var(--border)',fontSize:12}}>
-              <Globe2 size={12} style={{opacity:0.4,flexShrink:0}}/>
-              <span style={{flex:1,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{el.name||el.href}</span>
-              <small style={{opacity:0.4,maxWidth:160,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{el.href}</small>
-              <button onClick={()=>{setUrl(el.href)}} style={{fontSize:11,padding:'2px 8px'}}>Go</button>
-            </div>)}
-            {links.length===0&&<div style={{padding:24,textAlign:'center',opacity:0.4}}>No links found on this page.</div>}
-          </div>}
+        {/* Elements — clickable */}
+        {tab==='elements'&&<div style={{flex:1,overflow:'auto'}}>
+          {elements.length===0&&<div style={{padding:32,textAlign:'center',opacity:0.35}}>Navigate to a page first</div>}
+          {elements.map(el=><div key={el.ref}
+            style={{display:'flex',alignItems:'center',gap:8,padding:'6px 12px',borderBottom:'1px solid var(--line)',fontSize:12}}>
+            <code style={{fontSize:10,opacity:0.4,width:55,flexShrink:0,overflow:'hidden',textOverflow:'ellipsis'}}>{el.tag}{el.type?'.'+el.type:''}</code>
+            <span style={{flex:1,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap',opacity:el.disabled?.5:1}}>{el.name||el.value||<em style={{opacity:.4}}>—</em>}</span>
+            {el.disabled&&<span style={{fontSize:10,opacity:.4}}>off</span>}
+            <button disabled={el.disabled||busy}
+              onClick={()=>{setSelInput('@'+el.ref);direct('click',{selector:'@'+el.ref})}}
+              style={{fontSize:11,padding:'3px 10px'}}>Click</button>
+            <button onClick={()=>setSelInput('@'+el.ref)}
+              style={{fontSize:11,padding:'3px 8px',background:'transparent',border:'1px solid var(--line)'}}>Sel</button>
+          </div>)}
+        </div>}
 
-          {/* Inputs tab */}
-          {activeTab==='inputs'&&<div style={{flex:1,overflow:'auto',padding:8}}>
-            {inputs.map(el=><div key={el.ref} style={{display:'flex',alignItems:'center',gap:8,padding:'6px 8px',borderBottom:'1px solid var(--border)',fontSize:12}}>
-              <code style={{fontSize:10,opacity:0.5,width:60,flexShrink:0}}>{el.tag}{el.type?'.'+el.type:''}</code>
-              <span style={{flex:1}}>{el.name||el.value||<em style={{opacity:0.4}}>unnamed</em>}</span>
-              <button onClick={()=>setSelector('@'+el.ref)} style={{fontSize:11,padding:'2px 8px',background:'transparent',border:'1px solid var(--border)'}}>Select</button>
-            </div>)}
-            {inputs.length===0&&<div style={{padding:24,textAlign:'center',opacity:0.4}}>No input fields found on this page.</div>}
-          </div>}
+        {/* Links */}
+        {tab==='links'&&<div style={{flex:1,overflow:'auto'}}>
+          {links.length===0&&<div style={{padding:32,textAlign:'center',opacity:0.35}}>No links found</div>}
+          {links.map(el=><div key={el.ref}
+            style={{display:'flex',alignItems:'center',gap:8,padding:'6px 12px',borderBottom:'1px solid var(--line)',fontSize:12}}>
+            <Globe2 size={12} style={{opacity:.4,flexShrink:0}}/>
+            <span style={{flex:1,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{el.name||el.href}</span>
+            <span style={{fontSize:10,opacity:.35,maxWidth:140,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{el.href}</span>
+            <button onClick={()=>setUrl(el.href)} disabled={busy}
+              style={{fontSize:11,padding:'3px 10px'}}>Go</button>
+            <button onClick={()=>{setSelInput('@'+el.ref);direct('click',{selector:'@'+el.ref})}} disabled={busy}
+              style={{fontSize:11,padding:'3px 10px'}}>Click</button>
+          </div>)}
+        </div>}
 
-          {/* Text tab */}
-          {activeTab==='text'&&<div style={{flex:1,overflow:'auto',padding:16}}>
-            <pre style={{whiteSpace:'pre-wrap',fontSize:12,opacity:0.8,lineHeight:1.6}}>{page.text}</pre>
-          </div>}
-        </>}
-      </main>
-    </div>
+        {/* Inputs */}
+        {tab==='inputs'&&<div style={{flex:1,overflow:'auto'}}>
+          {inputs.length===0&&<div style={{padding:32,textAlign:'center',opacity:0.35}}>No input fields found</div>}
+          {inputs.map(el=><div key={el.ref}
+            style={{display:'flex',alignItems:'center',gap:8,padding:'8px 12px',borderBottom:'1px solid var(--line)',fontSize:12}}>
+            <code style={{fontSize:10,opacity:.4,width:80,flexShrink:0}}>{el.tag}{el.type?'.'+el.type:''}</code>
+            <span style={{flex:1,opacity:.7}}>{el.name||el.value||<em style={{opacity:.4}}>unnamed</em>}</span>
+            <button onClick={()=>setSelInput('@'+el.ref)}
+              style={{fontSize:11,padding:'3px 10px'}}>Select</button>
+            <button onClick={()=>{setSelInput('@'+el.ref);direct('click',{selector:'@'+el.ref})}} disabled={busy}
+              style={{fontSize:11,padding:'3px 10px'}}>Focus</button>
+          </div>)}
+        </div>}
+
+        {/* Buttons */}
+        {tab==='btns'&&<div style={{flex:1,overflow:'auto'}}>
+          {btns.length===0&&<div style={{padding:32,textAlign:'center',opacity:0.35}}>No buttons found</div>}
+          {btns.map(el=><div key={el.ref}
+            style={{display:'flex',alignItems:'center',gap:8,padding:'6px 12px',borderBottom:'1px solid var(--line)',fontSize:12}}>
+            <span style={{flex:1,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap',opacity:el.disabled?.4:1}}>{el.name||<em style={{opacity:.4}}>unnamed</em>}</span>
+            {el.disabled&&<span style={{fontSize:10,opacity:.4}}>disabled</span>}
+            <button disabled={el.disabled||busy}
+              onClick={()=>{setSelInput('@'+el.ref);direct('click',{selector:'@'+el.ref})}}
+              style={{fontSize:11,padding:'3px 10px'}}>Click</button>
+          </div>)}
+        </div>}
+
+        {/* Text */}
+        {tab==='text'&&<div style={{flex:1,overflow:'auto',padding:16}}>
+          <pre style={{whiteSpace:'pre-wrap',fontSize:12,opacity:.75,lineHeight:1.7,margin:0}}>{page?.text||'Navigate to a page first'}</pre>
+        </div>}
+
+      </div>
+    </div>}
   </div>
 }
 function CalendarWorkspace(){const[events,setEvents]=useState([]),[title,setTitle]=useState(''),[start,setStart]=useState('');const load=()=>apiFetch(API+'/calendar').then(r=>r.json()).then(d=>setEvents(d.events||[]));useEffect(load,[]);async function add(e){e.preventDefault();if(!title||!start)return;await apiFetch(API+'/calendar',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({title,start_at:new Date(start).toISOString(),reminder_minutes:15})});setTitle('');setStart('');load()}async function remove(id){await apiFetch(`${API}/calendar/${id}`,{method:'DELETE'});load()}const groups=events.reduce((a,e)=>{let d=e.start_at.slice(0,10);(a[d]??=[]).push(e);return a},{});return <div className="calendar"><div className="libraryHead"><div><small>TIME INTELLIGENCE</small><h1>Your study calendar</h1><p>Schedule focused work and keep reminders synchronized across devices.</p></div></div><form className="eventAdd" onSubmit={add}><input value={title} onChange={e=>setTitle(e.target.value)} placeholder="What will you study?"/><input type="datetime-local" value={start} onChange={e=>setStart(e.target.value)}/><button>Schedule</button></form><div className="agenda">{Object.entries(groups).map(([day,list])=><section key={day}><div className="day"><b>{new Date(day+'T00:00:00').toLocaleDateString(undefined,{weekday:'short'})}</b><strong>{new Date(day+'T00:00:00').getDate()}</strong><small>{new Date(day+'T00:00:00').toLocaleDateString(undefined,{month:'short'})}</small></div><div>{list.map(e=><article key={e.id}><time>{new Date(e.start_at).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'})}</time><i/><span><b>{e.title}</b><small>{e.subject||'Study session'} · reminder {e.reminder_minutes} min before</small></span><button onClick={()=>remove(e.id)}>×</button></article>)}</div></section>)}{!events.length&&<div className="drop"><CalendarDays/><h3>No sessions scheduled</h3><p>Add your first study block above.</p></div>}</div></div>}
