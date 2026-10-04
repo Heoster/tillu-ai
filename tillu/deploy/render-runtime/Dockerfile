@@ -60,4 +60,4 @@ CMD ["sh", "-c", \
       --workers 1 \
       --proxy-headers \
       --forwarded-allow-ips='*' \
-      --log-level ${LOG_LEVEL:-info}"]
+      --log-level $(echo ${LOG_LEVEL:-info} | tr '[:upper:]' '[:lower:]')"]
