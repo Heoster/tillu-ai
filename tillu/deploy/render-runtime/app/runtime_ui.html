@@ -291,9 +291,9 @@ async function startStream(sid) {
   streamAbort = ctrl;
   const headers = {};
   try {
-    const res = await fetch(apiUrl(`/apibrows/er-control/sessions/${sid}/stream?f)ps=15`, {
+    const res = await fetch(apiUrl(`/apibrows/er-control/sessions/${sid}/stream?fps=15`), {
       headers, signal: ctrl.signal
-    });
+    }); 
     if (!res.ok) return;
     const reader = res.body.getReader();
     let buf = new Uint8Array(0);
