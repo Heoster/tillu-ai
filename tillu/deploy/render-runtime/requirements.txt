@@ -1,3 +1,7 @@
+# ── TILLU Runtime — Python dependencies ──────────────────────────────────────
+# Pin every package to an exact version so Render builds are reproducible.
+# The Playwright version MUST match the Docker base image tag (v1.55.0-noble).
+
 fastapi==0.115.6
 uvicorn[standard]==0.34.0
 pydantic==2.10.4
@@ -8,10 +12,17 @@ pypdf==5.1.0
 supabase==2.11.0
 langchain-core==0.3.29
 langgraph==0.2.60
-
 beautifulsoup4==4.12.3
-pytest==8.3.4
 croniter==3.0.3
+
+# Must match the base image: mcr.microsoft.com/playwright/python:v1.55.0-noble
 playwright==1.55.0
+
 pywebpush==2.0.3
 honcho-ai==2.5.1
+
+# Required by backup encryption in decide_action
+cryptography==43.0.3
+
+# Test runner (not installed in production image — kept here for parity with apps/api)
+pytest==8.3.4

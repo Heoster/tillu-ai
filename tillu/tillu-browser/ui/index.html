@@ -1,0 +1,624 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<!-- CSP: no remote scripts; local fetch to localhost API only -->
+<meta http-equiv="Content-Security-Policy"
+      content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' blob: data:; connect-src http://127.0.0.1:* http://localhost:*;"/>
+<title>Tillu Runtime</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#0d0b14;--surface:#13111e;--surface2:#1a1728;--surface3:#221f30;
+  --line:#2a2638;--text:#e8e4f0;--muted:#6b6480;--accent:#7c5cbf;
+  --accent2:#9b7ee0;--success:#48d594;--warn:#ffb84d;--danger:#ff6b6b;
+}
+html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);
+  font:13px/1.5 'Inter',system-ui,sans-serif;user-select:none;-webkit-app-region:no-drag}
+#app{height:100vh;display:flex;flex-direction:column}
+
+/* ── Titlebar ── */
+#titlebar{height:44px;display:flex;align-items:center;gap:10px;padding:0 14px;
+  background:var(--surface);border-bottom:1px solid var(--line);flex-shrink:0;-webkit-app-region:drag}
+#titlebar button,-webkit-app-region:no-drag{-webkit-app-region:no-drag}
+.logo{font:700 13px 'Inter';letter-spacing:.05em;color:var(--accent2);-webkit-app-region:no-drag}
+.logo span{color:var(--muted);font-weight:400}
+.status-dot{width:7px;height:7px;border-radius:50%;background:var(--muted);flex-shrink:0;transition:background .3s}
+.status-dot.ready{background:var(--success);box-shadow:0 0 5px var(--success)}
+.status-dot.busy{background:var(--warn);animation:pulse 1s infinite}
+.status-dot.error{background:var(--danger)}
+#status-text{font-size:11px;color:var(--muted)}
+.spacer{flex:1}
+#api-badge{font-size:10px;color:var(--accent2);border:1px solid color-mix(in srgb,var(--accent2) 30%,transparent);border-radius:20px;padding:2px 8px;-webkit-app-region:no-drag;cursor:default}
+#agent-badge{font-size:10px;border-radius:20px;padding:2px 8px;display:none;-webkit-app-region:no-drag}
+#agent-badge.active{display:inline;color:var(--success);border:1px solid color-mix(in srgb,var(--success) 30%,transparent)}
+
+/* ── Toolbar ── */
+#toolbar{height:44px;display:flex;align-items:center;gap:5px;padding:0 8px;
+  background:var(--surface);border-bottom:1px solid var(--line);flex-shrink:0}
+.nav-btn{width:28px;height:28px;border:1px solid transparent;background:none;color:var(--muted);
+  border-radius:6px;cursor:pointer;display:grid;place-items:center;font-size:14px;
+  transition:background .12s,color .12s}
+.nav-btn:hover:not(:disabled){background:var(--surface2);color:var(--text);border-color:var(--line)}
+.nav-btn:disabled{opacity:.28;cursor:default}
+#url-wrap{flex:1;display:flex;align-items:center;background:var(--surface2);border:1px solid var(--line);
+  border-radius:7px;overflow:hidden;transition:border-color .15s;position:relative}
+#url-wrap:focus-within{border-color:var(--accent)}
+#lock-icon{padding:0 7px;font-size:12px;flex-shrink:0;user-select:none;pointer-events:none}
+#url-input{flex:1;background:none;border:0;outline:none;color:var(--text);font-size:12px;
+  padding:6px 8px 6px 0;min-width:0;user-select:text;-webkit-user-select:text}
+#progress-bar{position:absolute;bottom:0;left:0;right:0;height:2px;
+  background:linear-gradient(90deg,var(--accent),transparent);display:none;animation:sweep 1.2s ease-in-out infinite}
+#progress-bar.show{display:block}
+@keyframes sweep{0%{transform:translateX(-100%)}100%{transform:translateX(100%)}}
+#launch-btn{border:0;background:var(--accent);color:#fff;border-radius:6px;
+  padding:5px 14px;font-size:12px;cursor:pointer;white-space:nowrap;flex-shrink:0}
+#launch-btn:hover{background:var(--accent2)}
+#launch-btn:disabled{opacity:.45;cursor:default}
+#btn-reveal{font-size:10px;padding:4px 9px;background:var(--surface2);border:1px solid var(--line);
+  color:var(--muted);border-radius:6px;cursor:pointer;white-space:nowrap}
+#btn-reveal:hover{color:var(--text);border-color:var(--accent)}
+#sidebar-toggle{width:28px;height:28px;border:1px solid var(--line);background:var(--surface2);
+  color:var(--muted);border-radius:6px;cursor:pointer;display:grid;place-items:center;font-size:12px}
+
+/* ── Page strip / error bar ── */
+#page-strip{height:24px;display:none;align-items:center;gap:8px;padding:0 12px;
+  background:var(--surface2);border-bottom:1px solid var(--line);flex-shrink:0;font-size:10px;overflow:hidden}
+#page-strip.show{display:flex}
+#page-title{font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:280px}
+#page-url{color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex:1}
+#err-bar{display:none;align-items:center;justify-content:space-between;gap:8px;padding:5px 12px;
+  background:#2a1018;color:var(--danger);font-size:11px;border-bottom:1px solid #5a2020;flex-shrink:0}
+#err-bar.show{display:flex}
+#err-bar button{background:none;border:none;color:var(--danger);cursor:pointer;font-size:15px}
+
+/* ── Viewport ── */
+#viewport-row{flex:1;display:flex;overflow:hidden;min-height:0}
+#canvas-zone{flex:1;overflow:hidden;background:#0a0912;display:flex;align-items:center;
+  justify-content:center;position:relative}
+#browser-canvas{display:none;max-width:100%;max-height:100%;cursor:crosshair;outline:none}
+#browser-canvas.show{display:block}
+#browser-canvas.focused{outline:2px solid var(--accent)}
+.cbadge{position:absolute;left:50%;transform:translateX(-50%);background:rgba(0,0,0,.85);
+  padding:4px 14px;border-radius:18px;font-size:11px;pointer-events:none;white-space:nowrap}
+#loading-badge{top:10px;color:var(--warn);display:none}
+#loading-badge.show{display:block}
+#empty-state{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;
+  justify-content:center;gap:14px;opacity:.55}
+#empty-state svg{width:52px;height:52px;stroke:currentColor;fill:none;stroke-width:1.5}
+#empty-state h2{font-size:18px}
+#empty-state p{font-size:12px;color:var(--muted);text-align:center;max-width:320px;line-height:1.6}
+#empty-state button{border:0;background:var(--accent);color:#fff;border-radius:7px;
+  padding:10px 26px;font-size:14px;cursor:pointer}
+#empty-state button:hover{background:var(--accent2)}
+#focus-hint{bottom:8px;top:auto;color:rgba(255,255,255,.45);font-size:9px;display:none}
+
+/* ── Sidebar ── */
+#sidebar{width:210px;border-left:1px solid var(--line);display:flex;flex-direction:column;
+  background:var(--surface);flex-shrink:0;overflow:hidden;transition:width .15s,opacity .15s}
+#sidebar.hidden{width:0;opacity:0;pointer-events:none}
+.stabs{display:flex;border-bottom:1px solid var(--line);flex-shrink:0}
+.stab{flex:1;padding:7px 2px;background:none;border:none;border-bottom:2px solid transparent;
+  cursor:pointer;font-size:9px;color:var(--muted);display:flex;align-items:center;justify-content:center;gap:3px}
+.stab.active{color:var(--text);border-bottom-color:var(--accent)}
+.sbadge{background:var(--surface2);border-radius:9px;padding:1px 5px;font-size:8px}
+.slist{flex:1;overflow-y:auto}
+.slist::-webkit-scrollbar{width:3px}
+.slist::-webkit-scrollbar-thumb{background:var(--line);border-radius:3px}
+.srow{display:flex;align-items:center;gap:5px;padding:4px 7px;
+  border-bottom:1px solid var(--line);font-size:10px}
+.stag{font-size:8px;color:var(--muted);flex-shrink:0;min-width:26px;font-family:monospace}
+.slabel{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.slabel.dim{opacity:.35}
+.sact{flex-shrink:0;font-size:8px;padding:2px 6px;background:var(--surface2);
+  border:1px solid var(--line);color:var(--text);border-radius:3px;cursor:pointer}
+.sact:hover{background:var(--surface3);border-color:var(--accent)}
+.sact:disabled{opacity:.28;cursor:default}
+.sempty{padding:16px 10px;text-align:center;color:var(--muted);font-size:10px;line-height:1.6}
+#session-info{border-top:1px solid var(--line);padding:6px 8px;flex-shrink:0;display:none}
+#session-id-label{font-size:8px;color:var(--muted);font-family:monospace;
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+
+/* ── Hint bar ── */
+#hint-bar{height:20px;display:flex;align-items:center;gap:14px;padding:0 12px;
+  background:var(--surface);border-top:1px solid var(--line);flex-shrink:0}
+.hint{font-size:9px;color:var(--muted);display:flex;align-items:center;gap:3px}
+.hint kbd{background:var(--surface2);border:1px solid var(--line);border-radius:3px;
+  padding:1px 3px;font-size:8px;font-family:monospace;color:var(--text)}
+#fps-label{margin-left:auto;font-size:9px;color:var(--accent)}
+
+/* ── Animations ── */
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.35}}
+::-webkit-scrollbar{width:4px;height:4px}
+::-webkit-scrollbar-thumb{background:var(--line);border-radius:4px}
+</style>
+</head>
+<body>
+<div id="app">
+  <!-- Titlebar -->
+  <div id="titlebar">
+    <div class="logo">TILLU <span>runtime</span></div>
+    <div class="status-dot" id="status-dot"></div>
+    <span id="status-text">starting…</span>
+    <div class="spacer"></div>
+    <span id="agent-badge">🤖 agent active</span>
+    <span id="api-badge" id="api-badge">API :7788</span>
+  </div>
+
+  <!-- Toolbar -->
+  <div id="toolbar">
+    <button class="nav-btn" id="btn-back"    disabled title="Back (Alt+←)">&#8592;</button>
+    <button class="nav-btn" id="btn-forward" disabled title="Forward (Alt+→)">&#8594;</button>
+    <button class="nav-btn" id="btn-reload"  disabled title="Reload (Ctrl+R)">&#8635;</button>
+    <div id="url-wrap">
+      <span id="lock-icon">🌐</span>
+      <input id="url-input" type="text" value="https://google.com"
+             placeholder="Search or enter address" autocomplete="off" spellcheck="false"/>
+      <div id="progress-bar"></div>
+    </div>
+    <button id="launch-btn">🚀 Launch</button>
+    <button class="nav-btn" id="btn-close" disabled title="Close session"
+            style="font-size:11px;color:var(--danger)">✕</button>
+    <button id="btn-reveal" title="Pop out agent view window">⊡ reveal</button>
+    <button id="sidebar-toggle" title="Toggle element panel">⊟</button>
+  </div>
+
+  <div id="page-strip"><span id="page-title"></span><span id="page-url"></span></div>
+  <div id="err-bar"><span id="err-msg"></span><button onclick="hideErr()">✕</button></div>
+
+  <!-- Viewport -->
+  <div id="viewport-row">
+    <div id="canvas-zone">
+      <canvas id="browser-canvas" width="1280" height="800" tabindex="0"></canvas>
+      <div class="cbadge" id="loading-badge">Loading…</div>
+      <div id="empty-state">
+        <svg viewBox="0 0 24 24">
+          <circle cx="12" cy="12" r="10"/>
+          <line x1="2" y1="12" x2="22" y2="12"/>
+          <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/>
+        </svg>
+        <h2>Browser Explorer</h2>
+        <p>Enter an address and hit Launch.<br/>The Tillu agent can also drive this browser remotely.</p>
+        <button id="empty-launch-btn">🚀 Launch browser</button>
+      </div>
+      <div class="cbadge" id="focus-hint">Click canvas · type directly · Ctrl+L for address bar</div>
+    </div>
+
+    <!-- Sidebar: element inspector -->
+    <div id="sidebar">
+      <div class="stabs">
+        <button class="stab active" data-tab="el">All<span class="sbadge" id="badge-el">0</span></button>
+        <button class="stab" data-tab="lk">Links<span class="sbadge" id="badge-lk">0</span></button>
+        <button class="stab" data-tab="in">Inputs<span class="sbadge" id="badge-in">0</span></button>
+        <button class="stab" data-tab="bt">Btns<span class="sbadge" id="badge-bt">0</span></button>
+      </div>
+      <div class="slist" id="sidebar-list"><div class="sempty">Launch a browser session first</div></div>
+      <div id="session-info">
+        <div class="srow"><span class="stag">session</span><span id="session-id-label">—</span></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Hint bar -->
+  <div id="hint-bar">
+    <div class="hint"><kbd>Ctrl+L</kbd> address</div>
+    <div class="hint"><kbd>Ctrl+R</kbd> reload</div>
+    <div class="hint"><kbd>Alt+←/→</kbd> back/fwd</div>
+    <div class="hint"><kbd>Scroll</kbd> scroll page</div>
+    <span id="fps-label">— fps</span>
+  </div>
+</div>
+
+<script>
+'use strict';
+// ── Constants ─────────────────────────────────────────────────────────────────
+const VPORT_W = 1280, VPORT_H = 800;
+
+// ── State ──────────────────────────────────────────────────────────────────────
+let sessionId    = '';
+let elements     = [];
+let apiPort      = 7788;
+let isLoading    = false;
+let sidebarOpen  = true;
+let activeTab    = 'el';
+let streamAbort  = null;
+let frameCount   = 0;
+let fpsTimer     = 0;
+let agentActive  = false;
+
+const canvas = document.getElementById('browser-canvas');
+const ctx    = canvas.getContext('2d');
+const urlIn  = document.getElementById('url-input');
+
+// ── Helpers ───────────────────────────────────────────────────────────────────
+function setStatus(cls, text) {
+  document.getElementById('status-dot').className = 'status-dot ' + cls;
+  document.getElementById('status-text').textContent = text;
+}
+function showErr(msg) {
+  document.getElementById('err-msg').textContent = msg;
+  document.getElementById('err-bar').classList.add('show');
+}
+function hideErr() { document.getElementById('err-bar').classList.remove('show'); }
+function setLoading(v) {
+  isLoading = v;
+  document.getElementById('loading-badge').classList.toggle('show', v && !!sessionId);
+  document.getElementById('progress-bar').classList.toggle('show', v);
+  document.getElementById('btn-reload').textContent = v ? '✕' : '⟳';
+}
+function setAgentActive(v) {
+  agentActive = v;
+  document.getElementById('agent-badge').className = v ? 'active' : '';
+}
+function toFullUrl(v) {
+  v = v.trim();
+  if (!v) return 'https://google.com';
+  if (/^https?:\/\//i.test(v)) return v;
+  if (/^[\w.-]+\.\w{2,}/.test(v)) return 'https://' + v;
+  return 'https://www.google.com/search?q=' + encodeURIComponent(v);
+}
+function esc(s) {
+  return String(s)
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;')
+    .replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+// ── API fetch (to local Express server) ───────────────────────────────────────
+async function api(path, opts = {}) {
+  const url = `http://127.0.0.1:${apiPort}${path}`;
+  const res = await fetch(url, {
+    ...opts,
+    headers: { 'content-type': 'application/json', ...(opts.headers || {}) },
+  });
+  if (!res.ok) {
+    const d = await res.json().catch(() => ({}));
+    throw new Error(d.detail || `HTTP ${res.status}`);
+  }
+  return res.json();
+}
+
+// ── MJPEG stream ──────────────────────────────────────────────────────────────
+async function startStream(sid) {
+  if (streamAbort) streamAbort.abort();
+  const ctrl = new AbortController();
+  streamAbort = ctrl;
+  fpsTimer = Date.now(); frameCount = 0;
+
+  try {
+    const res = await fetch(
+      `http://127.0.0.1:${apiPort}/api/browser-control/sessions/${sid}/stream?fps=15`,
+      { signal: ctrl.signal }
+    );
+    if (!res.ok) { showErr('Stream failed: HTTP ' + res.status); return; }
+
+    const reader = res.body.getReader();
+    let buf = new Uint8Array(0);
+
+    function find(hay, needle, start = 0) {
+      outer: for (let i = start; i <= hay.length - needle.length; i++) {
+        for (let j = 0; j < needle.length; j++) if (hay[i+j] !== needle[j]) continue outer;
+        return i;
+      }
+      return -1;
+    }
+    const CRLF2 = new Uint8Array([13,10,13,10]);
+    const dec   = new TextDecoder('latin1');
+
+    function tryDecode() {
+      while (true) {
+        const hEnd = find(buf, CRLF2);
+        if (hEnd === -1) return;
+        const hdr  = dec.decode(buf.slice(0, hEnd));
+        const pStart = hEnd + 4;
+        const clm  = hdr.match(/Content-Length:\s*(\d+)/i);
+        if (clm) {
+          const len = parseInt(clm[1], 10);
+          if (buf.length < pStart + len) return;
+          drawJpeg(buf.slice(pStart, pStart + len));
+          buf = buf.slice(pStart + len);
+        } else {
+          const js = find(buf, new Uint8Array([0xFF,0xD8]), pStart);
+          if (js === -1) { buf = buf.slice(pStart); return; }
+          const je = find(buf, new Uint8Array([0xFF,0xD9]), js + 2);
+          if (je === -1) return;
+          drawJpeg(buf.slice(js, je + 2));
+          buf = buf.slice(je + 2);
+        }
+      }
+    }
+
+    function drawJpeg(bytes) {
+      const blob = new Blob([bytes], { type: 'image/jpeg' });
+      const burl = URL.createObjectURL(blob);
+      const img  = new Image();
+      img.onload = () => {
+        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+        URL.revokeObjectURL(burl);
+        frameCount++;
+        const now = Date.now();
+        if (now - fpsTimer >= 1000) {
+          document.getElementById('fps-label').textContent = frameCount + ' fps';
+          frameCount = 0; fpsTimer = now;
+        }
+      };
+      img.onerror = () => URL.revokeObjectURL(burl);
+      img.src = burl;
+    }
+
+    while (true) {
+      const { value, done } = await reader.read();
+      if (done) break;
+      const next = new Uint8Array(buf.length + value.length);
+      next.set(buf); next.set(value, buf.length);
+      buf = next;
+      tryDecode();
+    }
+  } catch (e) {
+    if (e.name !== 'AbortError') showErr('Stream disconnected — session may have closed');
+  }
+}
+
+function stopStream() {
+  if (streamAbort) { streamAbort.abort(); streamAbort = null; }
+  document.getElementById('fps-label').textContent = '— fps';
+}
+
+// ── Session lifecycle ─────────────────────────────────────────────────────────
+async function launchSession() {
+  if (isLoading) return;
+  setLoading(true); setStatus('busy', 'starting…'); hideErr();
+  try {
+    const { session_id } = await api('/api/browser-control/sessions', { method: 'POST', body: JSON.stringify({ user_id: 'local' }) });
+    sessionId = session_id;
+    document.getElementById('session-id-label').textContent = session_id.slice(0,18) + '…';
+    document.getElementById('session-info').style.display = '';
+    document.getElementById('empty-state').style.display  = 'none';
+    canvas.classList.add('show');
+    ['btn-back','btn-forward','btn-reload','btn-close'].forEach(id => document.getElementById(id).disabled = false);
+    startStream(session_id);
+    const target = toFullUrl(urlIn.value);
+    setStatus('busy', 'navigating…');
+    applyPageState(await api('/api/browser-control/navigate', {
+      method: 'POST', body: JSON.stringify({ session_id, url: target }),
+    }));
+    document.getElementById('focus-hint').style.display = '';
+    setStatus('ready', 'ready');
+  } catch (e) {
+    showErr(e.message); setStatus('error', 'failed');
+  } finally {
+    setLoading(false);
+  }
+}
+
+async function closeSession() {
+  stopStream();
+  if (sessionId) {
+    try { await api(`/api/browser-control/sessions/${sessionId}`, { method: 'DELETE' }); } catch {}
+  }
+  sessionId = ''; elements = [];
+  canvas.classList.remove('show');
+  document.getElementById('empty-state').style.display = '';
+  document.getElementById('session-info').style.display = 'none';
+  document.getElementById('page-strip').classList.remove('show');
+  document.getElementById('focus-hint').style.display = 'none';
+  ['btn-back','btn-forward','btn-reload','btn-close'].forEach(id => document.getElementById(id).disabled = true);
+  urlIn.value = 'https://google.com';
+  renderSidebar([]);
+  setStatus('idle', 'closed');
+}
+
+// ── Navigation ────────────────────────────────────────────────────────────────
+function applyPageState(d) {
+  if (d.url)      urlIn.value = d.url;
+  if (d.elements) elements = d.elements;
+  const title = d.title || '';
+  document.getElementById('page-title').textContent = title;
+  document.getElementById('page-url').textContent   = d.url || '';
+  document.getElementById('page-strip').classList.toggle('show', !!(title || d.url));
+  document.getElementById('lock-icon').textContent  = (d.url || '').startsWith('https://') ? '🔒' : '🔓';
+  renderSidebar(elements);
+}
+
+async function navigate(url) {
+  if (!sessionId) { launchSession(); return; }
+  const target = toFullUrl(url || urlIn.value);
+  setLoading(true); setStatus('busy', 'navigating…'); hideErr();
+  try { applyPageState(await api('/api/browser-control/navigate', { method: 'POST', body: JSON.stringify({ session_id: sessionId, url: target }) })); }
+  catch (e) { showErr(e.message); }
+  finally { setLoading(false); setStatus('ready', 'ready'); canvas.focus(); }
+}
+
+async function goBack() {
+  if (!sessionId || isLoading) return;
+  setLoading(true); setStatus('busy', 'back…');
+  try { applyPageState(await api(`/api/browser-control/sessions/${sessionId}/go-back`, { method: 'POST' })); }
+  catch (e) { showErr(e.message); }
+  finally { setLoading(false); setStatus('ready', 'ready'); }
+}
+async function goForward() {
+  if (!sessionId || isLoading) return;
+  setLoading(true); setStatus('busy', 'fwd…');
+  try { applyPageState(await api(`/api/browser-control/sessions/${sessionId}/go-forward`, { method: 'POST' })); }
+  catch (e) { showErr(e.message); }
+  finally { setLoading(false); setStatus('ready', 'ready'); }
+}
+async function reload() {
+  if (!sessionId) return;
+  if (isLoading) {
+    api('/api/browser-control/keyboard/press', { method:'POST', body: JSON.stringify({ session_id: sessionId, key:'Escape' }) }).catch(()=>{});
+    return;
+  }
+  setLoading(true); setStatus('busy', 'reloading…');
+  try { applyPageState(await api(`/api/browser-control/sessions/${sessionId}/reload`, { method: 'POST' })); }
+  catch (e) { showErr(e.message); }
+  finally { setLoading(false); setStatus('ready', 'ready'); }
+}
+
+// ── Canvas input ──────────────────────────────────────────────────────────────
+function canvasXY(e) {
+  const r = canvas.getBoundingClientRect();
+  return {
+    x: Math.round((e.clientX - r.left) * (VPORT_W / r.width)),
+    y: Math.round((e.clientY - r.top)  * (VPORT_H / r.height)),
+  };
+}
+
+canvas.addEventListener('click', e => {
+  if (!sessionId) return;
+  const {x, y} = canvasXY(e);
+  api('/api/browser-control/mouse/click', { method:'POST', body: JSON.stringify({ session_id:sessionId, x, y, button:'left' }) }).catch(()=>{});
+  canvas.focus();
+});
+canvas.addEventListener('contextmenu', e => {
+  e.preventDefault();
+  if (!sessionId) return;
+  const {x, y} = canvasXY(e);
+  api('/api/browser-control/mouse/click', { method:'POST', body: JSON.stringify({ session_id:sessionId, x, y, button:'right' }) }).catch(()=>{});
+});
+canvas.addEventListener('wheel', e => {
+  e.preventDefault();
+  if (!sessionId) return;
+  api('/api/browser-control/mouse/scroll', { method:'POST', body: JSON.stringify({ session_id:sessionId, x:0, y:0, delta_x:Math.round(e.deltaX), delta_y:Math.round(e.deltaY) }) }).catch(()=>{});
+}, { passive: false });
+
+let moveTimer = null;
+canvas.addEventListener('mousemove', e => {
+  if (!sessionId) return;
+  clearTimeout(moveTimer);
+  moveTimer = setTimeout(() => {
+    const {x, y} = canvasXY(e);
+    api('/api/browser-control/mouse/move', { method:'POST', body: JSON.stringify({ session_id:sessionId, x, y }) }).catch(()=>{});
+  }, 40);
+});
+canvas.addEventListener('focus', () => { canvas.classList.add('focused'); document.getElementById('focus-hint').style.display='none'; });
+canvas.addEventListener('blur',  () => { canvas.classList.remove('focused'); if (sessionId) document.getElementById('focus-hint').style.display=''; });
+
+const SKEYS = { Enter:'Enter',Backspace:'Backspace',Delete:'Delete',Escape:'Escape',Tab:'Tab',
+  ArrowUp:'ArrowUp',ArrowDown:'ArrowDown',ArrowLeft:'ArrowLeft',ArrowRight:'ArrowRight',
+  Home:'Home',End:'End',PageUp:'PageUp',PageDown:'PageDown',F5:'F5',F12:'F12',' ':'Space' };
+
+canvas.addEventListener('keydown', e => {
+  if (!sessionId) return;
+  if (e.ctrlKey && e.key === 'l')           { e.preventDefault(); urlIn.focus(); urlIn.select(); return; }
+  if (e.ctrlKey && e.key === 'r')           { e.preventDefault(); reload(); return; }
+  if (e.altKey  && e.key === 'ArrowLeft')   { e.preventDefault(); goBack(); return; }
+  if (e.altKey  && e.key === 'ArrowRight')  { e.preventDefault(); goForward(); return; }
+  e.preventDefault();
+  const k = SKEYS[e.key];
+  if (k) {
+    api('/api/browser-control/keyboard/press', { method:'POST', body: JSON.stringify({ session_id:sessionId, key:k }) }).catch(()=>{});
+  } else if (e.key.length === 1 && !e.ctrlKey && !e.metaKey && !e.altKey) {
+    api('/api/browser-control/keyboard/type',  { method:'POST', body: JSON.stringify({ session_id:sessionId, text:e.key }) }).catch(()=>{});
+  } else if (e.ctrlKey && e.key.length === 1) {
+    api('/api/browser-control/keyboard/press', { method:'POST', body: JSON.stringify({ session_id:sessionId, key:'Control+'+e.key.toUpperCase() }) }).catch(()=>{});
+  }
+});
+
+// ── Sidebar ───────────────────────────────────────────────────────────────────
+function renderSidebar(els) {
+  elements = els || elements;
+  const links  = elements.filter(e => e.tag === 'a'  && e.href);
+  const inputs = elements.filter(e => ['input','textarea','select'].includes(e.tag));
+  const btns   = elements.filter(e => e.tag === 'button' || e.role === 'button');
+  document.getElementById('badge-el').textContent = elements.length;
+  document.getElementById('badge-lk').textContent = links.length;
+  document.getElementById('badge-in').textContent = inputs.length;
+  document.getElementById('badge-bt').textContent = btns.length;
+  const rows = (activeTab==='el' ? elements.slice(0,150) : activeTab==='lk' ? links : activeTab==='in' ? inputs : btns);
+  const list = document.getElementById('sidebar-list');
+  if (!rows.length) { list.innerHTML = `<div class="sempty">${sessionId ? 'No elements found' : 'Launch a session first'}</div>`; return; }
+  list.innerHTML = rows.map(el => {
+    const label = esc(el.name || el.value || el.href || '—');
+    const dis   = el.disabled ? ' disabled' : '';
+    if (activeTab === 'lk')
+      return `<div class="srow"><span class="slabel" title="${esc(el.href||'')}">${label}</span><button class="sact" onclick="navTo(${JSON.stringify(el.href||'')})"${dis}>Go</button></div>`;
+    return `<div class="srow"><span class="stag">${esc(el.tag)}</span><span class="slabel${el.disabled?' dim':''}" title="${label}">${label}</span><button class="sact" onclick="clickAt(${el.x||0},${el.y||0},${el.w||20},${el.h||20})"${dis}>↖</button></div>`;
+  }).join('');
+}
+
+async function clickAt(x, y, w, h) {
+  if (!sessionId) return;
+  api('/api/browser-control/mouse/click', { method:'POST', body: JSON.stringify({ session_id:sessionId, x:x+Math.round(w/2), y:y+Math.round(h/2), button:'left' }) }).catch(()=>{});
+  canvas.focus();
+}
+function navTo(href) { navigate(href); }
+
+// ── IPC from main process (agent activity, navigation events) ─────────────────
+if (window.tillu) {
+  // Get API port
+  window.tillu.getApiPort().then(p => {
+    apiPort = p;
+    document.getElementById('api-badge').textContent = `API :${p}`;
+  });
+
+  // Agent navigated (the Express server told main, main forwarded here)
+  window.tillu.on('agent:navigated', ({ url, title }) => {
+    urlIn.value = url || '';
+    document.getElementById('page-title').textContent = title || '';
+    document.getElementById('page-url').textContent   = url  || '';
+    document.getElementById('page-strip').classList.toggle('show', !!(title || url));
+    document.getElementById('lock-icon').textContent  = (url||'').startsWith('https://') ? '🔒' : '🔓';
+    setAgentActive(true);
+    setTimeout(() => setAgentActive(false), 3000);
+  });
+
+  window.tillu.on('agent:loading', v => {
+    setLoading(v);
+    setStatus(v ? 'busy' : 'ready', v ? 'agent loading…' : 'ready');
+  });
+
+  window.tillu.on('session:started', ({ session_id }) => {
+    // Agent started a session via the API; reflect it in the UI
+    if (!sessionId) {
+      sessionId = session_id;
+      document.getElementById('session-id-label').textContent = session_id.slice(0,18) + '…';
+      document.getElementById('session-info').style.display = '';
+      document.getElementById('empty-state').style.display  = 'none';
+      canvas.classList.add('show');
+      ['btn-back','btn-forward','btn-reload','btn-close'].forEach(id => document.getElementById(id).disabled = false);
+      startStream(session_id);
+      setStatus('ready', 'ready');
+    }
+  });
+
+  window.tillu.on('session:closed', () => {
+    if (sessionId) closeSession();
+  });
+}
+
+// ── Button wiring ─────────────────────────────────────────────────────────────
+document.getElementById('btn-back').onclick    = goBack;
+document.getElementById('btn-forward').onclick = goForward;
+document.getElementById('btn-reload').onclick  = reload;
+document.getElementById('btn-close').onclick   = closeSession;
+document.getElementById('launch-btn').onclick  = launchSession;
+document.getElementById('empty-launch-btn').onclick = launchSession;
+
+document.getElementById('url-input').addEventListener('focus', e => e.target.select());
+document.getElementById('url-input').addEventListener('keydown', e => {
+  if (e.key === 'Enter') { e.preventDefault(); navigate(urlIn.value); }
+});
+
+document.getElementById('btn-reveal').onclick = () => {
+  window.tillu?.revealAgentView();
+};
+
+document.getElementById('sidebar-toggle').onclick = () => {
+  sidebarOpen = !sidebarOpen;
+  document.getElementById('sidebar').classList.toggle('hidden', !sidebarOpen);
+  document.getElementById('sidebar-toggle').textContent = sidebarOpen ? '⊟' : '⊞';
+};
+
+document.querySelectorAll('.stab').forEach(btn => {
+  btn.onclick = () => {
+    document.querySelectorAll('.stab').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active'); activeTab = btn.dataset.tab; renderSidebar();
+  };
+});
+
+// ── Init ──────────────────────────────────────────────────────────────────────
+setStatus('idle', 'ready');
+</script>
+</body>
+</html>

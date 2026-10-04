@@ -1,13 +1,32 @@
-# Exclude from Docker build image (tests are for local pytest only)
+# ── Files excluded from the Docker build context ─────────────────────────────
+# Keep this list tight — anything here is not sent to the Docker daemon.
+
+# Python artifacts
 .venv
 __pycache__
 **/__pycache__
 .pytest_cache
 *.pyc
+*.pyo
+
+# Local databases (never ship to production)
 *.db
+*.sqlite
+
+# Environment files (secrets must come from Render env vars, not files)
 .env
 .env.*
 !.env.example
+
+# Runtime-generated directories (created fresh at container start)
 library
 browser-artifacts
+
+# Tests (not needed in the production image)
 tests
+
+# Editor / OS noise
+.DS_Store
+Thumbs.db
+*.swp
+*.swo

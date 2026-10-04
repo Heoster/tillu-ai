@@ -303,7 +303,7 @@ async def run_download(job_id: str):
 async def lifespan(app: FastAPI):
     if settings.environment == "production":
         missing=[]
-        if settings.service_role!='runtime' and (not settings.supabase_url or not settings.supabase_anon_key or not settings.supabase_service_role_key): missing.append("Supabase")
+        if not settings.supabase_url or not settings.supabase_anon_key or not settings.supabase_service_role_key: missing.append("Supabase")
         if not settings.owner_user_id: missing.append("OWNER_USER_ID")
         if settings.service_role=='brain' and not any(p.configured for p in gateway.providers()): missing.append("AI provider")
         if settings.service_role=='brain' and not settings.runtime_internal_url:missing.append('RUNTIME_INTERNAL_URL')
@@ -331,23 +331,6 @@ app.add_middleware(RateLimitMiddleware, requests_per_minute=settings.rate_limit_
 _cors_origins=[x.strip() for x in settings.cors_origins.split(",")]
 _wildcard=_cors_origins==['*'] or '*' in _cors_origins
 app.add_middleware(CORSMiddleware, allow_origins=_cors_origins, allow_credentials=not _wildcard, allow_methods=["*"], allow_headers=["*"])
-
-_UI_FILE = Path(__file__).parent / "runtime_ui.html"
-
-@app.get("/", include_in_schema=False)
-@app.get("/runtime-ui", include_in_schema=False)
-async def runtime_ui():
-    """Standalone browser explorer UI. Mints a short-lived HMAC token and injects
-    it into the page so the UI can call browser-control endpoints without a Bearer token."""
-    if not _UI_FILE.exists():
-        raise HTTPException(404, "Runtime UI not found")
-    from .auth import mint_ui_token
-    token = mint_ui_token()
-    html = _UI_FILE.read_text(encoding="utf-8")
-    # Inject the token as a JS constant right before </head>
-    injection = f'\n<script>window.__RT_TOKEN__={json.dumps(token)};</script>\n'
-    html = html.replace("</head>", injection + "</head>", 1)
-    return Response(content=html, media_type="text/html")
 
 @app.get("/api/health")
 def health(): return {"status":"ok","service":settings.service_name,"role":settings.service_role,"version":"0.8.0","build":settings.build_sha,"uptime_seconds":round(time.time()-STARTED_AT)}
@@ -453,7 +436,13 @@ async def chat(body: ChatRequest, user: User = Depends(current_user)):
         try:
             result=await orchestrate(body.message,user.id,conversation_id,previous)
             response={"message":result["answer"],"plan":None,"ui":state["ui"],"provider":result.get("provider"),"model":result.get("model"),"run_id":run_id,"conversation_id":conversation_id,"tools":[x.get("tool") for x in result.get("tool_results",[])],"citations":result.get("citations",[]),"widgets":result.get("widgets",[]),"agent_cycle":result.get("cycle",[]),"generated_at":result.get("generated_at",now()),"orchestrator_errors":result.get("errors",[])}
-            save_checkpoint(run_id,user.id,{"message":body.message,"intent":result.get("intent"),"tools":response["tools"],"citations":len(response["citations"])},"completed",now())
+            # Surface action proposal from the orchestrator (propose_action node).
+            # The approval widget is already injected by verify(); expose the proposal id at top level too.
+            _orch_proposal=result.get('action_proposal')
+            if _orch_proposal:
+                response["action_proposal_id"]=_orch_proposal['id']
+                response["ui"]={"layout":"approval"}
+            save_checkpoint(run_id,user.id,{"message":body.message,"intent":result.get("intent"),"tools":response["tools"],"citations":len(response["citations"]),"action_proposal_id":response.get("action_proposal_id")},"completed",now())
         except Exception as exc:
             response={"message":"TILLU could not complete this request. No action was taken.","plan":None,"ui":state["ui"],"provider":"orchestrator","model":"failed","run_id":run_id,"conversation_id":conversation_id,"tools":[],"citations":[],"widgets":[{"type":"status","tone":"error","title":"Request interrupted","message":"No action was taken. Try again or check provider availability."}],"generated_at":now(),"orchestrator_errors":[type(exc).__name__]}
             save_checkpoint(run_id,user.id,{"message":body.message,"error":type(exc).__name__},"failed",now())

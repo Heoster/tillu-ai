@@ -1,18 +1,28 @@
-# Render Blueprint — TILLU Runtime (Render account B)
-# Point a Render Blueprint at THIS file (deploy/render-runtime/render.yaml).
-# This folder is self-contained: app/, skills/, requirements.txt, Dockerfile
-# are all present here. No files are pulled from apps/api at build time.
-# Do NOT use this file to deploy the Brain service — use deploy/render-brain/render.yaml.
+# ── Render Blueprint — TILLU Runtime ─────────────────────────────────────────
+# Deploy scope: this file deploys ONLY the runtime service.
+# Point the Render Blueprint at the REPO ROOT and set Root Directory to
+#   deploy/render-runtime
+# so Render resolves Dockerfile and context relative to this folder.
+#
+# Do NOT use this file to deploy the Brain — use deploy/render-brain/render.yaml.
+
 services:
   - type: web
     name: tillu-runtime
     runtime: docker
     plan: free
+    region: oregon             # pick the region closest to your brain service
+    # Paths are relative to the repo root when rootDir is NOT set, or relative
+    # to rootDir when it is. Setting both explicitly removes all ambiguity.
     dockerfilePath: ./deploy/render-runtime/Dockerfile
     dockerContext: ./deploy/render-runtime
     healthCheckPath: /api/health/ready
+    # Render will redeploy on every push to the default branch.
+    # Set to manual if you want gated deploys.
     autoDeployTrigger: commit
+
     envVars:
+      # ── Service identity ─────────────────────────────────────────────────
       - key: ENVIRONMENT
         value: production
       - key: SERVICE_ROLE
@@ -20,34 +30,124 @@ services:
       - key: SERVICE_NAME
         value: tillu-runtime
       - key: BUILD_SHA
-        sync: false
+        sync: false            # injected by CI / Render build hook
+
+      # ── Server ───────────────────────────────────────────────────────────
       - key: WEB_CONCURRENCY
         value: "1"
+      - key: LOG_LEVEL
+        value: info
+      - key: RATE_LIMIT_PER_MINUTE
+        value: "120"
+
+      # ── Auth / security ──────────────────────────────────────────────────
+      - key: TILLU_INTERNAL_SECRET
+        sync: false
+      - key: RPC_CAPABILITY_SECRET
+        sync: false
+      - key: BACKUP_ENCRYPTION_KEY
+        sync: false
+      - key: CRON_SECRET
+        sync: false
+
+      # ── Owner ────────────────────────────────────────────────────────────
+      - key: OWNER_USER_ID
+        sync: false
+      - key: OWNER_EMAIL
+        sync: false
+
+      # ── Supabase ─────────────────────────────────────────────────────────
       - key: SUPABASE_URL
         sync: false
       - key: SUPABASE_ANON_KEY
         sync: false
       - key: SUPABASE_SERVICE_ROLE_KEY
         sync: false
-      - key: OWNER_USER_ID
+
+      # ── AI providers ─────────────────────────────────────────────────────
+      - key: GROQ_API_KEY
         sync: false
-      - key: OWNER_EMAIL
+      - key: OPENROUTER_API_KEY
         sync: false
-      - key: CORS_ORIGINS
+      - key: GOOGLE_API_KEY
         sync: false
-      - key: PUBLIC_APP_URL
+      - key: CLOUDFLARE_ACCOUNT_ID
         sync: false
-      - key: TILLU_INTERNAL_SECRET
+      - key: CLOUDFLARE_API_TOKEN
         sync: false
-      - key: CRON_SECRET
+
+      # Model overrides — leave blank to use the curated defaults in config.py
+      - key: GROQ_MODEL
+        value: openai/gpt-oss-20b
+      - key: GOOGLE_MODEL
+        value: gemini-3.1-flash-lite
+      - key: OPENROUTER_MODEL
+        value: openrouter/free
+      - key: CLOUDFLARE_MODEL
+        value: "@cf/qwen/qwen3-30b-a3b-fp8"
+
+      # ── Search providers ─────────────────────────────────────────────────
+      - key: TAVILY_API_KEY
         sync: false
-      - key: BACKUP_ENCRYPTION_KEY
+      - key: FIRECRAWL_API_KEY
         sync: false
+      - key: YOU_API_KEY
+        sync: false
+      - key: PARALLEL_API_KEY
+        sync: false
+      - key: SEARCH_PROVIDER_ORDER
+        value: parallel,you,tavily,firecrawl,wikipedia
+
+      # ── Honcho memory ────────────────────────────────────────────────────
+      - key: HONCHO_REQUIRED
+        value: "true"
+      - key: HONCHO_API_KEY
+        sync: false
+      - key: HONCHO_BASE_URL
+        value: https://api.honcho.dev
+      - key: HONCHO_WORKSPACE_ID
+        value: tillu-heoster
+      - key: HONCHO_USER_PEER
+        value: heoster
+      - key: HONCHO_ASSISTANT_PEER
+        value: tillu
+      - key: HONCHO_REASONING_LEVEL
+        value: medium
+
+      # ── Browser ──────────────────────────────────────────────────────────
       - key: BROWSER_HEADLESS
         value: "true"
+
+      # ── Web push (VAPID) ─────────────────────────────────────────────────
       - key: VAPID_PUBLIC_KEY
         sync: false
       - key: VAPID_PRIVATE_KEY
         sync: false
       - key: VAPID_SUBJECT
         sync: false
+
+      # ── Integrations (optional) ──────────────────────────────────────────
+      - key: GOOGLE_CLIENT_ID
+        sync: false
+      - key: GOOGLE_CLIENT_SECRET
+        sync: false
+      - key: GMAIL_REFRESH_TOKEN
+        sync: false
+      - key: WHATSAPP_ACCESS_TOKEN
+        sync: false
+      - key: WHATSAPP_PHONE_NUMBER_ID
+        sync: false
+      - key: WHATSAPP_VERIFY_TOKEN
+        sync: false
+
+      # ── CORS / public URL ────────────────────────────────────────────────
+      - key: CORS_ORIGINS
+        sync: false
+      - key: PUBLIC_APP_URL
+        sync: false
+
+      # ── Location defaults (IST / Roorkee) ───────────────────────────────
+      - key: DEFAULT_LATITUDE
+        value: "29.97"
+      - key: DEFAULT_LONGITUDE
+        value: "77.55"
