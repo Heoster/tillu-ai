@@ -410,13 +410,16 @@ def _current_user_or_ui_token(
     return current_user(authorization)
 
 @app.get('/browser-ui', include_in_schema=False)
-async def browser_ui(user: User = Depends(current_user)):
-    """Serve the browser control panel HTML (runtime role only)."""
+async def browser_ui():
+    """Serve the browser control panel HTML — no auth on the page itself.
+    The HTML is public; a short-lived token is injected so the page can call
+    /api/browser-control/* without a user-facing login prompt.
+    Only available when SERVICE_ROLE=runtime."""
     if settings.service_role != 'runtime':
-        raise HTTPException(403, 'Browser UI is only available on the runtime service')
+        raise HTTPException(404, 'Not found')  # don't leak that this route exists on brain
     ui_path = Path(__file__).resolve().parent / 'runtime_ui.html'
     if not ui_path.exists():
-        raise HTTPException(404, 'runtime_ui.html not found')
+        raise HTTPException(503, 'runtime_ui.html not found — check the Docker build')
     token = _issue_ui_token()
     html = ui_path.read_text(encoding='utf-8')
     # Inject the token so the page's JS can authenticate API calls via ?_t=
