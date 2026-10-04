@@ -303,7 +303,7 @@ async def run_download(job_id: str):
 async def lifespan(app: FastAPI):
     if settings.environment == "production":
         missing=[]
-        if not settings.supabase_url or not settings.supabase_anon_key or not settings.supabase_service_role_key: missing.append("Supabase")
+        if settings.service_role!='runtime' and (not settings.supabase_url or not settings.supabase_anon_key or not settings.supabase_service_role_key): missing.append("Supabase")
         if not settings.owner_user_id: missing.append("OWNER_USER_ID")
         if settings.service_role=='brain' and not any(p.configured for p in gateway.providers()): missing.append("AI provider")
         if settings.service_role=='brain' and not settings.runtime_internal_url:missing.append('RUNTIME_INTERNAL_URL')
