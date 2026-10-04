@@ -1,5 +1,5 @@
 FROM mcr.microsoft.com/playwright/python:v1.55.0-noble
-ENV PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1 PIP_NO_CACHE_DIR=1 PLAYWRIGHT_BROWSERS_PATH=/ms-playwright
+ENV PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1 PIP_NO_CACHE_DIR=1
 
 RUN groupadd --system tillu && useradd --system --gid tillu --create-home tillu
 
@@ -9,6 +9,9 @@ WORKDIR /app
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
+# Install Playwright browsers as root so they land in /root/.cache and are accessible
+RUN playwright install chromium --with-deps
+
 # Application source
 COPY app ./app
 
@@ -17,6 +20,9 @@ COPY skills ./skills
 
 # Runtime directories (owned by the service user)
 RUN mkdir -p /app/library /app/browser-artifacts && chown -R tillu:tillu /app
+
+# Copy browsers into tillu's home so the user can access them
+RUN cp -r /root/.cache /home/tillu/.cache && chown -R tillu:tillu /home/tillu/.cache
 
 USER tillu
 EXPOSE 8000

@@ -181,7 +181,13 @@ def trim_history(history,max_chars=12000):
     return list(reversed(kept))
 
 async def classify(state:AgentState):
-    state['errors']=[];state['cycle']=[];fallback=route_tools(state['query']);prefs=state.get('preferences',{})
+    state['errors']=[];state['cycle']=[]
+    # Fast-path: skip all tools for casual/greeting messages
+    _q=state['query'].lower().strip()
+    _casual_prefixes=('hi','hello','hey','hii','helo','sup','yo','good morning','good evening','good afternoon','good night','how are you','how r you','how are u','whats up','what\'s up','thanks','thank you','ok','okay','cool','nice','great','bye','goodbye','see you','lol','haha','who are you','what are you','tell me about yourself','introduce yourself')
+    if len(_q)<60 and any(_q.startswith(p) or _q==p for p in _casual_prefixes):
+        state['selected_tools']=[];state['intent']='conversation';state['cycle'].append({'phase':'intent','status':'fast_path','provider':'deterministic','intent':'conversation'});return state
+    fallback=route_tools(state['query']);prefs=state.get('preferences',{})
     if not prefs.get('auto_fresh_search',True) and not any(x in state['query'].lower() for x in ('search','look up','find online')):fallback=[x for x in fallback if x['name']!='web_search']
     for call in fallback:
         if call['name']=='weather':call['args']={'latitude':prefs.get('default_latitude',settings.default_latitude),'longitude':prefs.get('default_longitude',settings.default_longitude)}
@@ -196,6 +202,9 @@ async def classify(state:AgentState):
     return state
 async def plan_cycle(state:AgentState):
     fallback=state.get('selected_tools',[]);catalog=[{'name':x['name'],'description':x['description']} for x in registry.catalog('read')]
+    # Skip LLM planner entirely when no tools are needed (casual conversation)
+    if not fallback:
+        state['plan_steps']=[];state['cycle'].append({'phase':'planning','status':'skipped','provider':'deterministic','tools':[]});return state
     prompt=[{'role':'system','content':'You are TILLU planner. Build the smallest safe read-only tool plan. Return JSON only: {"steps":["..."],"tool_calls":[{"name":"registered name","args":{}}]}. Use only tools from the supplied catalog. Never propose writes and never answer the user.'},{'role':'user','content':json.dumps({'request':state['query'],'intent':state['intent'],'tools':catalog})}]
     try:
         live=await gateway.json_chat(prompt,'planning',650)
