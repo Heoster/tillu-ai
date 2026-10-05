@@ -338,8 +338,12 @@ def health(): return {"status":"ok","service":settings.service_name,"role":setti
 @app.get("/api/health/browser", include_in_schema=False)
 def health_browser():
     """Public diagnostic — confirms the deployed image has the browser UI code and assets."""
+    import shutil, os
     ui_path = Path(__file__).resolve().parent / 'runtime_ui.html'
     routes = [r.path for r in app.routes if hasattr(r, 'path')]
+    chromium_path = shutil.which('chromium') or shutil.which('chromium-browser') or 'not found'
+    pw_browsers = os.environ.get('PLAYWRIGHT_BROWSERS_PATH', 'not set')
+    pw_chromium = Path(pw_browsers) / 'chromium-1161' if pw_browsers != 'not set' else None
     return {
         "build": settings.build_sha,
         "service_role": settings.service_role,
@@ -347,6 +351,9 @@ def health_browser():
         "runtime_ui_html_present": ui_path.exists(),
         "runtime_ui_html_bytes": ui_path.stat().st_size if ui_path.exists() else 0,
         "app_file": str(Path(__file__).resolve()),
+        "chromium_which": chromium_path,
+        "playwright_browsers_path": pw_browsers,
+        "playwright_chromium_dir_exists": pw_chromium.exists() if pw_chromium else False,
     }
 @app.get('/api/cors-debug')
 def cors_debug():
