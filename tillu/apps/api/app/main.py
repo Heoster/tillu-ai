@@ -424,10 +424,18 @@ def _current_user_or_ui_token(
     _t: str | None = None,  # query param injected by the UI
     request: Request = None,
 ) -> User:
-    """Auth dependency that accepts either a Supabase JWT or a short-lived UI token."""
+    """Auth dependency that accepts either a Supabase JWT, a short-lived UI token,
+    or — on the runtime role only — auto-authenticates as the owner so the
+    browser UI works without a bearer token."""
     # UI token path — only valid on the runtime service role
     if _t and settings.service_role == 'runtime' and _verify_ui_token(_t):
         return User(settings.owner_user_id or 'runtime-ui', settings.owner_email or None)
+    # Runtime auto-auth: no Supabase JWT needed on the runtime service.
+    # The runtime is network-isolated (only reachable from the brain via signed
+    # internal RPC, or from the browser UI via a short-lived token). Treat every
+    # request on the runtime role as the owner user.
+    if settings.service_role == 'runtime' and settings.owner_user_id:
+        return User(settings.owner_user_id, settings.owner_email or None)
     return current_user(authorization)
 
 @app.get('/browser-ui', include_in_schema=False)
