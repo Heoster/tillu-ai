@@ -28,12 +28,20 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
         bucket.append(now);return await call_next(request)
 
 class ServiceRoleBoundaryMiddleware(BaseHTTPMiddleware):
-    """Runtime is internal-only except for health and protected internal/cron routes."""
+    """Runtime is internal-only except for health, browser UI, and browser-control routes."""
     def __init__(self,app,role='brain'):super().__init__(app);self.role=role
     async def dispatch(self,request:Request,call_next):
         path=request.url.path
-        if self.role=='runtime' and not (path.startswith('/api/health') or path.startswith('/api/internal/')):
-            return JSONResponse(status_code=404,content={'detail':'Not found'})
+        if self.role=='runtime':
+            allowed=(
+                path.startswith('/api/health') or
+                path.startswith('/api/internal/') or
+                path.startswith('/api/browser-control/') or
+                path.startswith('/api/browser-ui') or
+                path == '/browser-ui'
+            )
+            if not allowed:
+                return JSONResponse(status_code=404,content={'detail':'Not found'})
         return await call_next(request)
 
 class MaximumBodyMiddleware(BaseHTTPMiddleware):
