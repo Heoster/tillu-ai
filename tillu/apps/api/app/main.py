@@ -334,6 +334,20 @@ app.add_middleware(CORSMiddleware, allow_origins=_cors_origins, allow_credential
 
 @app.get("/api/health")
 def health(): return {"status":"ok","service":settings.service_name,"role":settings.service_role,"version":"0.8.0","build":settings.build_sha,"uptime_seconds":round(time.time()-STARTED_AT)}
+
+@app.get("/api/health/browser", include_in_schema=False)
+def health_browser():
+    """Public diagnostic — confirms the deployed image has the browser UI code and assets."""
+    ui_path = Path(__file__).resolve().parent / 'runtime_ui.html'
+    routes = [r.path for r in app.routes if hasattr(r, 'path')]
+    return {
+        "build": settings.build_sha,
+        "service_role": settings.service_role,
+        "browser_ui_route_registered": '/browser-ui' in routes,
+        "runtime_ui_html_present": ui_path.exists(),
+        "runtime_ui_html_bytes": ui_path.stat().st_size if ui_path.exists() else 0,
+        "app_file": str(Path(__file__).resolve()),
+    }
 @app.get('/api/cors-debug')
 def cors_debug():
     allowed = [x.strip() for x in settings.cors_origins.split(",") if x.strip()]

@@ -1,7 +1,6 @@
 import asyncio
 import json
 import hashlib
-# build: 2026-10-05 v0.8.1 — browser-ui route, intent gating, propose_action
 import re
 import tempfile
 import time
@@ -336,26 +335,18 @@ app.add_middleware(CORSMiddleware, allow_origins=_cors_origins, allow_credential
 @app.get("/api/health")
 def health(): return {"status":"ok","service":settings.service_name,"role":settings.service_role,"version":"0.8.0","build":settings.build_sha,"uptime_seconds":round(time.time()-STARTED_AT)}
 
-@app.get('/api/diag', include_in_schema=False)
-def diag():
-    """Public diagnostic endpoint — lists registered routes, build info, and key file presence.
-    Remove or restrict this once the deployment is confirmed working."""
-    import os
-    app_dir = Path(__file__).resolve().parent
-    routes = sorted(r.path for r in app.routes if hasattr(r, 'path'))
-    files = {
-        'runtime_ui.html': (app_dir / 'runtime_ui.html').exists(),
-        'main.py': (app_dir / 'main.py').exists(),
-        'orchestrator.py': (app_dir / 'orchestrator.py').exists(),
-    }
+@app.get("/api/health/browser", include_in_schema=False)
+def health_browser():
+    """Public diagnostic — confirms the deployed image has the browser UI code and assets."""
+    ui_path = Path(__file__).resolve().parent / 'runtime_ui.html'
+    routes = [r.path for r in app.routes if hasattr(r, 'path')]
     return {
-        'build': settings.build_sha,
-        'service_role': settings.service_role,
-        'app_dir': str(app_dir),
-        'routes_count': len(routes),
-        'has_browser_ui_route': '/browser-ui' in routes,
-        'files': files,
-        'routes': routes,
+        "build": settings.build_sha,
+        "service_role": settings.service_role,
+        "browser_ui_route_registered": '/browser-ui' in routes,
+        "runtime_ui_html_present": ui_path.exists(),
+        "runtime_ui_html_bytes": ui_path.stat().st_size if ui_path.exists() else 0,
+        "app_file": str(Path(__file__).resolve()),
     }
 @app.get('/api/cors-debug')
 def cors_debug():
