@@ -14,33 +14,14 @@ RUN groupadd --system tillu && \
 
 WORKDIR /app
 
-# ── Copy entire build context so we can detect the layout ────────────────────
-COPY . /build/
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
 
-# ── Install deps ─────────────────────────────────────────────────────────────
-# Detect whether context root is deploy/render-runtime or the repo root
-RUN if [ -f /build/requirements.txt ]; then \
-        pip install --no-cache-dir -r /build/requirements.txt; \
-    else \
-        pip install --no-cache-dir -r /build/deploy/render-runtime/requirements.txt; \
-    fi
-
-# ── Playwright ────────────────────────────────────────────────────────────────
 RUN playwright install chromium --with-deps && \
     chmod -R a+rX /ms-playwright
 
-# ── Copy app source ───────────────────────────────────────────────────────────
-RUN if [ -d /build/app ]; then \
-        cp -r /build/app /app/app; \
-    else \
-        cp -r /build/deploy/render-runtime/app /app/app; \
-    fi && \
-    if [ -d /build/skills ]; then \
-        cp -r /build/skills /app/skills; \
-    elif [ -d /build/deploy/render-runtime/skills ]; then \
-        cp -r /build/deploy/render-runtime/skills /app/skills; \
-    fi && \
-    rm -rf /build
+COPY app ./app
+COPY skills ./skills
 
 RUN mkdir -p /app/library /app/browser-artifacts && \
     chown -R tillu:tillu /app

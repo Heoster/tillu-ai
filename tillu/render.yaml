@@ -1,7 +1,10 @@
-# Default Render Blueprint: TILLU Brain (Render account A).
-# For the separate Docker/runtime service in Render account B, use deploy/runtime/render.yaml.
-# The accepted topology is fixed in docs/ADR-001_HOSTING_TOPOLOGY.md.
+# Render Blueprint — repo root
+# Manages both TILLU services. Sync this file in the Render dashboard
+# under "Blueprints" to keep both services in lockstep.
+
 services:
+
+  # ── Brain (Render account A) ────────────────────────────────────────────────
   - type: web
     name: tillu-brain
     runtime: docker
@@ -69,3 +72,82 @@ services:
         sync: false
       - key: CLOUDFLARE_API_TOKEN
         sync: false
+
+  # ── Runtime (tillu-runtu.onrender.com) ─────────────────────────────────────
+  - type: web
+    name: tillu-runtime
+    runtime: docker
+    plan: free
+    dockerfilePath: ./deploy/render-runtime/Dockerfile
+    dockerContext: ./deploy/render-runtime
+    healthCheckPath: /api/health/ready
+    autoDeployTrigger: commit
+    envVars:
+      - key: ENVIRONMENT
+        value: production
+      - key: SERVICE_ROLE
+        value: runtime
+      - key: SERVICE_NAME
+        value: tillu-runtime
+      - key: BUILD_SHA
+        sync: false
+      - key: WEB_CONCURRENCY
+        value: "1"
+      - key: LOG_LEVEL
+        value: info
+      - key: TILLU_INTERNAL_SECRET
+        sync: false
+      - key: RPC_CAPABILITY_SECRET
+        sync: false
+      - key: BACKUP_ENCRYPTION_KEY
+        sync: false
+      - key: CRON_SECRET
+        sync: false
+      - key: OWNER_USER_ID
+        sync: false
+      - key: OWNER_EMAIL
+        sync: false
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_ANON_KEY
+        sync: false
+      - key: SUPABASE_SERVICE_ROLE_KEY
+        sync: false
+      - key: GROQ_API_KEY
+        sync: false
+      - key: OPENROUTER_API_KEY
+        sync: false
+      - key: GOOGLE_API_KEY
+        sync: false
+      - key: CLOUDFLARE_ACCOUNT_ID
+        sync: false
+      - key: CLOUDFLARE_API_TOKEN
+        sync: false
+      - key: TAVILY_API_KEY
+        sync: false
+      - key: YOU_API_KEY
+        sync: false
+      - key: BROWSER_HEADLESS
+        value: "true"
+      - key: CORS_ORIGINS
+        sync: false
+      - key: PUBLIC_APP_URL
+        sync: false
+      - key: VAPID_PUBLIC_KEY
+        sync: false
+      - key: VAPID_PRIVATE_KEY
+        sync: false
+      - key: VAPID_SUBJECT
+        sync: false
+      - key: HONCHO_REQUIRED
+        value: "true"
+      - key: HONCHO_API_KEY
+        sync: false
+      - key: HONCHO_BASE_URL
+        value: https://api.honcho.dev
+      - key: HONCHO_WORKSPACE_ID
+        value: tillu-heoster
+      - key: HONCHO_USER_PEER
+        value: heoster
+      - key: HONCHO_ASSISTANT_PEER
+        value: tillu
