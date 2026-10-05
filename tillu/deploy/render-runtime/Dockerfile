@@ -33,21 +33,9 @@ RUN playwright install chromium --with-deps && \
     chmod -R a+rX /ms-playwright
 
 # ── Application source ────────────────────────────────────────────────────────
-# Support both context modes:
-#   - rootDir=deploy/render-runtime  → COPY app ./app  (rootDir-relative)
-#   - repo root context              → COPY deploy/render-runtime/app ./app
-# We do both as separate COPY statements; Docker ignores missing sources only
-# when using glob — so we use a shell RUN to detect and copy the right one.
-COPY . /build-context/
-RUN if [ -d /build-context/app ]; then \
-        cp -r /build-context/app /app/app; \
-        cp -r /build-context/skills /app/skills 2>/dev/null || true; \
-    elif [ -d /build-context/deploy/render-runtime/app ]; then \
-        cp -r /build-context/deploy/render-runtime/app /app/app; \
-        cp -r /build-context/deploy/render-runtime/skills /app/skills 2>/dev/null || true; \
-    else \
-        echo "ERROR: cannot find app/ in build context" && exit 1; \
-    fi && rm -rf /build-context
+# Context root = deploy/render-runtime (Render Root Directory setting)
+COPY app ./app
+COPY skills ./skills
 
 # ── Runtime directories ───────────────────────────────────────────────────────
 RUN mkdir -p /app/library /app/browser-artifacts && \

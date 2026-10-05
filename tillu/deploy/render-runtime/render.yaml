@@ -12,14 +12,10 @@ services:
     runtime: docker
     plan: free
     region: oregon
-    rootDir: deploy/render-runtime   # all paths below are relative to this
+    rootDir: deploy/render-runtime
     dockerfilePath: ./Dockerfile
     dockerContext: .
     healthCheckPath: /api/health/ready
-    # Note: if rootDir is NOT honoured by your Render plan, set dockerfilePath
-    # and dockerContext manually in the dashboard to:
-    #   Dockerfile Path: deploy/render-runtime/Dockerfile
-    #   Docker Context:  deploy/render-runtime
     # Render will redeploy on every push to the default branch.
     # Set to manual if you want gated deploys.
     autoDeployTrigger: commit
