@@ -1,61 +1,56 @@
-# ── TILLU Runtime — Render build ─────────────────────────────────────────────
-# Base: official Playwright Python image ships Chromium + all system deps.
-# We pin to a specific digest via the tag so Render layer-caches reliably.
 FROM mcr.microsoft.com/playwright/python:v1.55.0-noble
 
-# Build date label — bump this to force a full cache bust on Render
-LABEL build.date="2026-10-05" build.version="0.8.1"
+LABEL build.version="0.8.1" build.date="2026-10-05"
 
-# ── Build-time env ────────────────────────────────────────────────────────────
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
     PIP_NO_CACHE_DIR=1 \
     PIP_DISABLE_PIP_VERSION_CHECK=1 \
-    # Tell Playwright where browsers live so both root and the service user agree
     PLAYWRIGHT_BROWSERS_PATH=/ms-playwright \
-    # Render injects PORT at runtime; default to 8000 for local docker run
     PORT=8000
 
-# ── System hardening ──────────────────────────────────────────────────────────
 RUN groupadd --system tillu && \
     useradd --system --gid tillu --create-home --shell /bin/false tillu
 
 WORKDIR /app
 
-# ── Python dependencies (cached layer) ───────────────────────────────────────
-COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+# ── Copy entire build context so we can detect the layout ────────────────────
+COPY . /build/
 
-# ── Playwright browsers ───────────────────────────────────────────────────────
-# Install into /ms-playwright (world-readable) so the non-root user can launch.
-# --with-deps installs OS packages needed by Chromium (fonts, libs).
+# ── Install deps ─────────────────────────────────────────────────────────────
+# Detect whether context root is deploy/render-runtime or the repo root
+RUN if [ -f /build/requirements.txt ]; then \
+        pip install --no-cache-dir -r /build/requirements.txt; \
+    else \
+        pip install --no-cache-dir -r /build/deploy/render-runtime/requirements.txt; \
+    fi
+
+# ── Playwright ────────────────────────────────────────────────────────────────
 RUN playwright install chromium --with-deps && \
     chmod -R a+rX /ms-playwright
 
-# ── Application source ────────────────────────────────────────────────────────
-# Context root = deploy/render-runtime (Render Root Directory setting)
-COPY app ./app
-COPY skills ./skills
+# ── Copy app source ───────────────────────────────────────────────────────────
+RUN if [ -d /build/app ]; then \
+        cp -r /build/app /app/app; \
+    else \
+        cp -r /build/deploy/render-runtime/app /app/app; \
+    fi && \
+    if [ -d /build/skills ]; then \
+        cp -r /build/skills /app/skills; \
+    elif [ -d /build/deploy/render-runtime/skills ]; then \
+        cp -r /build/deploy/render-runtime/skills /app/skills; \
+    fi && \
+    rm -rf /build
 
-# ── Runtime directories ───────────────────────────────────────────────────────
 RUN mkdir -p /app/library /app/browser-artifacts && \
     chown -R tillu:tillu /app
 
-# ── Drop privileges ───────────────────────────────────────────────────────────
 USER tillu
-
 EXPOSE 8000
 
-# ── Health check ──────────────────────────────────────────────────────────────
-# Render also hits healthCheckPath from render.yaml; this is for docker health.
 HEALTHCHECK --interval=30s --timeout=8s --start-period=40s --retries=3 \
-  CMD python -c \
-    "import urllib.request; urllib.request.urlopen('http://127.0.0.1:${PORT:-8000}/api/health/live', timeout=5)"
+  CMD python -c "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/api/health/live',timeout=5)"
 
-# ── Entrypoint ────────────────────────────────────────────────────────────────
-# --workers 1  : Render free plan has 512 MB RAM — one worker is safe
-# --proxy-headers: needed behind Render's TLS terminator
-# --forwarded-allow-ips='*': Render load-balancer IPs are dynamic
 CMD ["sh", "-c", \
      "uvicorn app.main:app \
       --host 0.0.0.0 \

@@ -1,32 +1,27 @@
-# ── Files excluded from the Docker build context ─────────────────────────────
-# Keep this list tight — anything here is not sent to the Docker daemon.
+# Exclude noise from the build context — works for both:
+#   Root Directory = deploy/render-runtime  (context = that folder)
+#   Root Directory = (repo root)            (context = entire repo)
 
-# Python artifacts
-.venv
-__pycache__
 **/__pycache__
-.pytest_cache
-*.pyc
-*.pyo
-
-# Local databases (never ship to production)
+**/*.pyc
+**/*.pyo
+**/.pytest_cache
+**/.venv
 *.db
 *.sqlite
-
-# Environment files (secrets must come from Render env vars, not files)
 .env
 .env.*
 !.env.example
-
-# Runtime-generated directories (created fresh at container start)
 library
 browser-artifacts
-
-# Tests (not needed in the production image)
 tests
-
-# Editor / OS noise
 .DS_Store
 Thumbs.db
 *.swp
 *.swo
+# Exclude the Electron browser app and other workspace noise from repo-root builds
+tillu-browser
+.agents
+.kiro
+apps/desktop
+apps/web
