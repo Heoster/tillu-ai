@@ -1,6 +1,7 @@
 # ── TILLU Runtime — Python dependencies ──────────────────────────────────────
 # Pin every package to an exact version so Render builds are reproducible.
 # The Playwright version MUST match the Docker base image tag (v1.55.0-noble).
+# cache-bust: 2026-10-05
 
 fastapi==0.115.6
 uvicorn[standard]==0.34.0
