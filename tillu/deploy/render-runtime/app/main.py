@@ -1,6 +1,7 @@
 import asyncio
 import json
 import hashlib
+# build: 2026-10-05 v0.8.1 — browser-ui route, intent gating, propose_action
 import re
 import tempfile
 import time
